@@ -1,0 +1,109 @@
+{
+  "631456dd-61ec-4582-a429-1e12983d055e": {
+    "id": "631456dd-61ec-4582-a429-1e12983d055e",
+    "title": "Viết REST API Python Flask + JWT + SQLite, có swagger docs",
+    "model": "Hnhat Pro",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Viết REST API Python Flask + JWT + SQLite, có swagger docs",
+        "model": "Hnhat Pro"
+      },
+      {
+        "role": "assistant",
+        "content": "Tôi sẽ hướng dẫn bạn cách tạo một REST API đơn giản bằng Python Flask, sử dụng JWT (JSON Web Token) cho xác thực và SQLite làm cơ sở dữ liệu. Chúng ta cũng sẽ tích hợp Swagger để tạo tài liệu API.\n\n**Bước 1: Cài đặt các thư viện cần thiết**\n\nChạy lệnh sau trong terminal:\n```bash\npip install flask flask-sqlalchemy flask-jwt-extended flask-swagger-ui\n```\n**Bước 2: Tạo cơ sở dữ liệu SQLite**\n\nTạo một file `database.db` trong thư mục dự án của bạn.\n\n**Bước 3: Tạo mô hình dữ liệu**\n\nTạo một file `models.py` với nội dung sau:\n```python\nfrom flask_sqlalchemy import SQLAlchemy\n\ndb = SQLAlchemy()\n\nclass User(db.Model):\n    id = db.Column(db.Integer, primary_key=True)\n    username = db.Column(db.String(80), unique=True, nullable=False)\n    password = db.Column(db.String(120), nullable=False)\n\n    def __repr__(self):\n        return f\"User('{self.username}')\"\n```\n**Bước 4: Tạo ứng dụng Flask**\n\nTạo một file `app.py` với nội dung sau:\n```python\nfrom flask import Flask, request, jsonify\nfrom flask_sqlalchemy import SQLAlchemy\nfrom flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity\nfrom flask_swagger_ui import get_swaggerui_blueprint\nfrom models import db, User\n\napp = Flask(__name__)\napp.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'\napp.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False\napp.config['JWT_SECRET_KEY'] = 'super-secret-key'  # Thay thế bằng một khóa bí mật an toàn\n\ndb.init_app(app)\njwt = JWTManager(app)\n\n# Tạo tài liệu API bằng Swagger\nSWAGGER_URL = '/swagger'\nAPI_URL = '/static/swagger.json'\nSWAGGERUI_BLUEPRINT = get_swaggerui_blueprint(\n    SWAGGER_URL,\n    API_URL,\n    config={\n        'app_name': \"REST API\"\n    }\n)\napp.register_blueprint(SWAGGERUI_BLUEPRINT, url_prefix=SWAGGER_URL)\n\n# Tạo API endpoint\n@app.route('/login', methods=['POST'])\ndef login():\n    username = request.json.get('username')\n    password = request.json.get('password')\n    user = User.query.filter_by(username=username).first()\n    if user and user.password == password:\n        access_token = create_access_token(identity=username)\n        return jsonify(access_token=access_token)\n    return jsonify(error='Tài khoản hoặc mật khẩu không đúng'), 401\n\n@app.route('/protected', methods=['GET'])\n@jwt_required\ndef protected():\n    current_user = get_jwt_identity()\n    return jsonify(logged_in_as=current_user)\n\nif __name__ == '__main__':\n    app.run(debug=True)\n```\n**Bước 5: Tạo tài liệu API bằng Swagger**\n\nTạo một file `swagger.json` trong thư mục `static` với nội dung sau:\n```json\n{\n  \"swagger\": \"2.0\",\n  \"info\": {\n    \"title\": \"REST API\",\n    \"description\": \"API đơn giản bằng Flask\",\n    \"version\": \"1.0.0\"\n  },\n  \"host\": \"localhost:5000\",\n  \"basePath\": \"/\",\n  \"schemes\": [\n    \"http\"\n  ],\n  \"consumes\": [\n    \"application/json\"\n  ],\n  \"produces\": [\n    \"application/json\"\n  ],\n  \"paths\": {\n    \"/login\": {\n      \"post\": {\n        \"summary\": \"Đăng nhập\",\n        \"consumes\": [\n          \"application/json\"\n        ],\n        \"parameters\": [\n          {\n            \"in\": \"body\",\n            \"name\": \"body\",\n            \"description\": \"Tài khoản và mật khẩu\",\n            \"schema\": {\n              \"$ref\": \"#/definitions/User\"\n            }\n          }\n        ],\n        \"responses\": {\n          \"200\": {\n            \"description\": \"Đăng nhập thành công\",\n            \"schema\": {\n              \"type\": \"object\",\n              \"properties\": {\n                \"access_token\": {\n                  \"type\": \"string\"\n                }\n              }\n            }\n          },\n          \"401\": {\n            \"description\": \"Tài khoản hoặc mật khẩu không đúng\"\n          }\n        }\n      }\n    },\n    \"/protected\": {\n      \"get\": {\n        \"summary\": \"Trang được bảo vệ\",\n        \"security\": [\n          {\n            \"bearerAuth\": []\n          }\n        ],\n        \"responses\": {\n          \"200\": {\n            \"description\": \"Trang được bảo vệ\",\n            \"schema\": {\n              \"type\": \"object\",\n              \"properties\": {\n                \"logged_in_as\": {\n                  \"type\": \"string\"\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n  },\n  \"definitions\": {\n    \"User\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"username\": {\n          \"type\": \"string\"\n        },\n        \"password\": {\n          \"type\": \"string\"\n        }\n      }\n    }\n  },\n  \"securityDefinitions\": {\n    \"bearerAuth\": {\n      \"type\": \"apiKey\",\n      \"name\": \"Authorization\",\n      \"in\": \"header\"\n    }\n  }\n}\n```\n**Bước 6: Chạy ứng dụng**\n\nChạy lệnh sau trong terminal:\n```bash\npython app.py\n```\nMở trình duyệt và truy cập vào địa chỉ `http://localhost:5000/swagger` để xem tài liệu API bằng Swagger.\n\nChúc bạn thành công!",
+        "model": "Hnhat Pro"
+      }
+    ],
+    "created": "2026-03-21T00:50:23.281741",
+    "updated": "2026-03-21T00:50:23.600480"
+  },
+  "ce24cd8f-65cf-4515-aa43-2cd0507049ab": {
+    "id": "ce24cd8f-65cf-4515-aa43-2cd0507049ab",
+    "title": "Review code này, tìm bug, đề xuất cải tiến theo best practic…",
+    "model": "Hnhat Code",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Review code này, tìm bug, đề xuất cải tiến theo best practices",
+        "model": "Hnhat Code"
+      },
+      {
+        "role": "assistant",
+        "content": "Tôi sẵn sàng giúp bạn review code và đề xuất cải tiến. Tuy nhiên, bạn chưa cung cấp code cụ thể nào để tôi có thể phân tích và đánh giá.\n\nVui lòng cung cấp code mà bạn muốn tôi review, và tôi sẽ thực hiện các bước sau:\n\n1. Đọc và phân tích code để tìm bug và lỗ hổng.\n2. Đánh giá code dựa trên các tiêu chuẩn best practices về sạch sẽ, hiệu suất, và bảo mật.\n3. Đề xuất cải tiến cụ thể để cải thiện code, bao gồm cả việc refactor và tối ưu hóa.\n4. Cung cấp giải thích chi tiết về từng dòng code và đề xuất cải tiến.\n\nHãy cung cấp code của bạn, và tôi sẽ bắt đầu quá trình review và đề xuất cải tiến. \n\nNếu bạn muốn, tôi cũng có thể giúp bạn với các vấn đề sau:\n\n* Thiết kế kiến trúc cho ứng dụng của bạn\n* Xây dựng REST API\n* Thiết kế cơ sở dữ liệu\n* Tối ưu hóa hiệu suất của ứng dụng\n* Triển khai ứng dụng trên VPS hoặc Docker\n\nHãy cho tôi biết cách tôi có thể giúp bạn!",
+        "model": "Hnhat Code"
+      }
+    ],
+    "created": "2026-03-21T00:50:52.712400",
+    "updated": "2026-03-21T00:50:53.026467"
+  },
+  "7775e7b9-5071-49a8-8d88-c76584e97a86": {
+    "id": "7775e7b9-5071-49a8-8d88-c76584e97a86",
+    "title": "xin chào",
+    "model": "Hnhat Master",
+    "messages": [
+      {
+        "role": "user",
+        "content": "xin chào",
+        "model": "Hnhat Pro"
+      },
+      {
+        "role": "assistant",
+        "content": "Xin chào! Tôi là Hnhat AI, trợ lý cá nhân thông minh của bạn. Tôi sẵn sàng giúp đỡ bạn với bất kỳ câu hỏi hoặc vấn đề nào liên quan đến lập trình, công nghệ, hoặc các chủ đề khác. Hãy cho tôi biết cách tôi có thể hỗ trợ bạn hôm nay!",
+        "model": "Hnhat Pro"
+      },
+      {
+        "role": "user",
+        "content": "bạn có biết lập trình không",
+        "model": "Hnhat Pro"
+      },
+      {
+        "role": "assistant",
+        "content": "Có! Tôi được đào tạo về lập trình và có kiến thức về nhiều ngôn ngữ lập trình khác nhau, bao gồm:\n\n* Python: Tôi có kiến thức sâu về Python và có thể giúp đỡ với các vấn đề liên quan đến lập trình Python, bao gồm cả việc viết mã, tối ưu hóa hiệu suất, và giải quyết lỗi.\n* Java: Tôi cũng có kiến thức về Java và có thể giúp đỡ với các vấn đề liên quan đến lập trình Java.\n* C++: Tôi có kiến thức cơ bản về C++ và có thể giúp đỡ với các vấn đề liên quan đến lập trình C++.\n* JavaScript: Tôi có kiến thức về JavaScript và có thể giúp đỡ với các vấn đề liên quan đến lập trình JavaScript, bao gồm cả việc viết mã cho các ứng dụng web và di động.\n\nTôi cũng có kiến thức về các công nghệ và framework khác nhau, bao gồm:\n\n* Web development: Tôi có kiến thức về các công nghệ web như HTML, CSS, React, Angular, và Vue.js.\n* Desktop development: Tôi có kiến thức về các công nghệ desktop như Electron, PyQt, và wxPython.\n* Automation: Tôi có kiến thức về các công nghệ automation như Selenium, PyAutoGUI, và Robot Framework.\n* AI/ML: Tôi có kiến thức về các công nghệ AI/ML như TensorFlow, Keras, và Scikit-learn.\n\nNếu bạn có bất kỳ câu hỏi hoặc vấn đề nào liên quan đến lập trình, hãy cho tôi biết và tôi sẽ cố gắng giúp đỡ bạn!",
+        "model": "Hnhat Pro"
+      },
+      {
+        "role": "user",
+        "content": "code cho tôi 1 đoạn mã có thể lấy được function của 1 script roblox",
+        "model": "Hnhat Code"
+      },
+      {
+        "role": "assistant",
+        "content": "Để lấy được function của một script Roblox, bạn cần phải sử dụng API của Roblox hoặc sử dụng một số công cụ khác. Dưới đây là một đoạn mã Python sử dụng thư viện `requests` để lấy thông tin về một script Roblox:\n\n```python\nimport requests\n\ndef get_script_info(script_id):\n    url = f\"https://api.roblox.com/Scripts/{script_id}\"\n    headers = {\n        \"User-Agent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3\",\n        \"Accept\": \"application/json\"\n    }\n    response = requests.get(url, headers=headers)\n    if response.status_code == 200:\n        return response.json()\n    else:\n        return None\n\ndef get_script_functions(script_id):\n    script_info = get_script_info(script_id)\n    if script_info:\n        functions = []\n        for line in script_info[\"Script\"]:\n            if \"function\" in line:\n                functions.append(line.strip())\n        return functions\n    else:\n        return None\n\nscript_id = \"123456789\"  # Thay thế bằng ID của script bạn muốn lấy\nfunctions = get_script_functions(script_id)\nif functions:\n    print(\"Functions:\")\n    for function in functions:\n        print(function)\nelse:\n    print(\"Không thể lấy được thông tin về script\")\n```\n\nLưu ý rằng đoạn mã trên chỉ có thể lấy được thông tin về script nếu script đó được công khai và có thể truy cập được thông qua API của Roblox. Ngoài ra, đoạn mã trên chỉ lấy được các function được định nghĩa trong script, không lấy được các function được gọi từ các script khác.\n\nNếu bạn muốn lấy được toàn bộ mã nguồn của script, bạn cần phải sử dụng công cụ khác như `roblox-api` hoặc `roblox-script-downloader`. Tuy nhiên, việc lấy mã nguồn của script mà không có sự cho phép của tác giả có thể vi phạm các điều khoản sử dụng của Roblox.\n\nVí dụ về công cụ `roblox-api`:\n\n```python\nimport roblox\n\nscript_id = \"123456789\"  # Thay thế bằng ID của script bạn muốn lấy\nscript = roblox.get_script(script_id)\nif script:\n    print(script.code)\nelse:\n    print(\"Không thể lấy được mã nguồn của script\")\n```\n\nLưu ý rằng công cụ `roblox-api` yêu cầu bạn phải có tài khoản Roblox và phải được cấp quyền truy cập vào API của Roblox. Ngoài ra, việc lấy mã nguồn của script mà không có sự cho phép của tác giả có thể vi phạm các điều khoản sử dụng của Roblox.",
+        "model": "Hnhat Code"
+      },
+      {
+        "role": "user",
+        "content": "xin chào",
+        "model": "Hnhat Code"
+      },
+      {
+        "role": "assistant",
+        "content": "Xin chào! Tôi sẵn sàng giúp đỡ bạn với bất kỳ câu hỏi hoặc vấn đề nào. Bạn cần giúp đỡ gì hôm nay?",
+        "model": "Hnhat Code"
+      },
+      {
+        "role": "user",
+        "content": "bạn tạo cho tôi 1 đoạn văn ngắn đi",
+        "model": "Hnhat Code"
+      },
+      {
+        "role": "assistant",
+        "content": "Dưới đây là một đoạn văn ngắn về một ngày nắng đẹp:\n\n\"Hôm nay là một ngày nắng đẹp. Mặt trời đang chiếu sáng trên bầu trời, làm cho cả thế giới trở nên tươi sáng và ấm áp. Cây cối đang đung đưa trong gió, và chim chóc đang hát những bài hát ngọt ngào. Tôi bước ra ngoài và cảm nhận được không khí trong lành và mát mẻ. Tôi cảm thấy hạnh phúc và thư giãn, như thể mọi thứ đều ổn trong cuộc sống. Tôi quyết định đi dạo trong công viên, tận hưởng cái nắng đẹp và không khí trong lành. Đó là một ngày tuyệt vời để tận hưởng cuộc sống và cảm nhận được hạnh phúc.\"",
+        "model": "Hnhat Code"
+      },
+      {
+        "role": "user",
+        "content": "viết cho tôi 1 bài văn tả cảnh đi",
+        "model": "Hnhat Master"
+      },
+      {
+        "role": "assistant",
+        "content": "Khi tôi bước ra khỏi cửa nhà, tôi cảm nhận được không khí trong lành và mát mẻ của buổi sáng. Mặt trời đang mọc lên từ phía đông, làm cho cả thế giới trở nên tươi sáng và ấm áp. Tôi quyết định đi dạo trong công viên gần nhà, tận hưởng cái nắng đẹp và không khí trong lành.\n\nKhi tôi đi vào công viên, tôi cảm nhận được sự yên tĩnh và thanh bình của không gian. Cây cối đang đung đưa trong gió, và chim chóc đang hát những bài hát ngọt ngào. Tôi nghe thấy tiếng nước chảy từ một con suối nhỏ gần đó, làm cho tôi cảm thấy thư giãn và dễ chịu.\n\nTôi đi dạo trên một con đường nhỏ, được lát bằng đá và được bao quanh bởi những cây hoa đẹp. Những bông hoa đang nở rộ, với màu sắc đa dạng và hương thơm ngọt ngào. Tôi cảm nhận được sự tươi đẹp của thiên nhiên, và cảm thấy hạnh phúc khi được tận hưởng cảnh quan tuyệt đẹp này.\n\nKhi tôi đi đến một khu vực mở, tôi thấy được một hồ nước lớn, với những con thuyền nhỏ đang trôi trên mặt nước. Những con chim nước đang bơi và chơi đùa trên mặt nước, làm cho tôi cảm thấy vui vẻ và hạnh phúc. Tôi ngồi xuống trên một băng ghế, và tận hưởng cảnh quan tuyệt đẹp này.\n\nSau một lúc, tôi quyết định đi tiếp, để khám phá thêm những cảnh quan đẹp của công viên. Tôi đi qua một khu rừng nhỏ, với những cây cao và dày, làm cho tôi cảm thấy như đang ở trong một thế giới khác. Tôi nghe thấy tiếng động của những con động vật nhỏ, và cảm nhận được sự sống động của thiên nhiên.\n\nCuối cùng, tôi đến một điểm cao, từ đó tôi có thể nhìn thấy toàn bộ công viên. Tôi thấy được những cảnh quan đẹp, với những cây cối, hoa, và nước. Tôi cảm nhận được sự hạnh phúc và thư giãn, khi được tận hưởng cảnh quan tuyệt đẹp này. Đó là một ngày tuyệt vời, và tôi cảm ơn vì đã có cơ hội đi dạo trong công viên này.",
+        "model": "Hnhat Master"
+      }
+    ],
+    "created": "2026-03-21T01:31:30.858957",
+    "updated": "2026-03-21T08:06:19.334640"
+  }
+}
