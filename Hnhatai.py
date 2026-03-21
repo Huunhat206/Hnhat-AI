@@ -6229,23 +6229,42 @@ boot();
 # ─────────────────────────────────────────────────────────────
 #  ENTRY POINT
 # ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    def _open_browser():
-        import time
-        time.sleep(1.1)
-        webbrowser.open("http://localhost:5000")
+    import time
+    import threading
+    import subprocess
+    import webbrowser
+
+    # Kiểm tra môi trường Cloud (Railway, Render, v.v.)
+    _IS_CLOUD = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RENDER") or os.environ.get("PORT"))
+    port = int(os.environ.get("PORT", 5000))
+
+    def _open_app_window():
+        time.sleep(1.5)
+        url = f"http://127.0.0.1:{port}"
+        try:
+            # Ưu tiên mở bằng Edge ở chế độ App
+            subprocess.Popen(['msedge', f'--app={url}'])
+        except Exception:
+            try:
+                # Thử mở bằng Chrome ở chế độ App
+                subprocess.Popen(['chrome', f'--app={url}'])
+            except Exception:
+                # Trở về mở bằng tab web bình thường
+                webbrowser.open(url)
 
     print()
     print("═" * 62)
     print("  ⚡  H N H A T   A I   v3.0")
     print("  Text: Groq API  |  Vision: Gemini API")
     if _IS_CLOUD:
-        print("  ☁️   Mode: CLOUD (Railway / Render / VPS)")
+        print("  ☁️   Mode: CLOUD (Railway / Render)")
+        print(f"  🌐  Đang chạy trên host 0.0.0.0, cổng {port}")
     else:
-        print("  💻  Mode: LOCAL")
+        print("  💻  Mode: LOCAL DESKTOP")
+        print(f"  🌐  Đang chạy trên host 127.0.0.1, cổng {port}")
     print("═" * 62)
-    print("  🌐  Mở trình duyệt : http://localhost:5000")
-    print()
     print("  Bước 1 → Mở Settings ⚙️ và nhập API Keys:")
     print("    Groq   : https://console.groq.com/keys")
     print("    Gemini : https://aistudio.google.com/app/apikey")
@@ -6257,11 +6276,10 @@ if __name__ == "__main__":
     print("═" * 62)
     print()
 
-    port = int(os.environ.get("PORT", 5000))
-    is_cloud = os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RENDER") or os.environ.get("PORT")
-    if not is_cloud:
-        threading.Thread(target=_open_browser, daemon=True).start()
+    if _IS_CLOUD:
+        # Nếu chạy trên Railway: dùng 0.0.0.0 để mở ra Internet, KHÔNG bật cửa sổ web
+        app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
     else:
-        print(f"  ☁️  Cloud mode — port {port}")
-        print("  🌐  Không mở browser (chạy trên server)")
-    app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
+        # Nếu chạy trên máy tính bạn: dùng 127.0.0.1 cho an toàn, BẬT cửa sổ Desktop App
+        threading.Thread(target=_open_app_window, daemon=True).start()
+        app.run(host="127.0.0.1", port=port, debug=False, threaded=True)
