@@ -4577,48 +4577,6 @@ async function boot() {
   loadBgState();
   restoreBubblePrefs();
 }
-// Kiểm tra xem đã có tên chưa
-function checkLogin() {
-  const savedName = localStorage.getItem("hnhat_username");
-  if (!savedName) {
-    document.getElementById("login-overlay").style.display = "flex";
-    return false;
-  }
-  document.getElementById("login-overlay").style.display = "none";
-  
-  // Đổi câu chào hỏi trên màn hình chính thành tên người dùng
-  const welcomeTitle = document.getElementById("welcome-title");
-  if (welcomeTitle) welcomeTitle.textContent = `Xin chào ${savedName}, tôi là Hnhat AI`;
-  return true;
-}
-
-// ── KHỞI ĐỘNG HỆ THỐNG ──
-    CURRENT_MODEL = cfg.default_model || "Hnhat Pro";
-    setModelUI(CURRENT_MODEL);
-    if (cfg.theme === "light") document.documentElement.setAttribute("data-theme", "light");
-    
-    // 1. TỰ ĐỘNG ĐIỀN KEY MẶC ĐỊNH CHO NGƯỜI MỚI (CHƯA CÓ TRONG LOCALSTORAGE)
-    if (localStorage.getItem("hnhat_groq_key") === null) {
-      localStorage.setItem("hnhat_groq_key", "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");
-    }
-    if (localStorage.getItem("hnhat_gemini_key") === null) {
-      localStorage.setItem("hnhat_gemini_key", "AIzaSyCy8Y9KAhzLKvRyoOE0U5otdFWwSi2i48Y");
-    }
-
-    // 2. KIỂM TRA NẾU VẪN KHÔNG CÓ KEY (Do cố tình xóa) THÌ MỞ BẢNG CÀI ĐẶT
-    const hasGroq = !!localStorage.getItem("hnhat_groq_key");
-    if (!hasGroq) setTimeout(openSettings, 800);
-  } catch(e) {
-    console.warn("Config load failed:", e);
-  }
-
-  await loadChatList();
-  setupGlobalDrag();
-  setupChatTitleRename();
-  restoreLocalPrefs();
-  loadBgState();
-  restoreBubblePrefs();
-}
 
 /* ──────────────────────────────────────────────────────────
    CHAT LIST
