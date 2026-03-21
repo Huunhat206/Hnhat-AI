@@ -2266,32 +2266,38 @@ body::after {
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* ═══ RESPONSIVE ════════════════════════════════════════════ */
-.mobile-close-btn {
-  display: none; 
-  background: none;
-  border: none;
-  color: var(--t2);
-  font-size: 18px;
-  padding: 4px 8px;
-  cursor: pointer;
-  margin-left: auto;
-  border-radius: 6px;
-  transition: 0.2s;
-}
-.mobile-close-btn:hover {
-  background: rgba(220, 38, 38, 0.15);
-  color: #f87171;
-}
+/* Ẩn nút cạnh trên máy tính */
+#mobile-edge-close { display: none; }
 
 @media (max-width: 640px) {
-  /* Cho phép nút đóng hiện lên khi màn hình nhỏ */
-  .mobile-close-btn { display: block; }
-  
+  /* Hiện nút trên mobile: Bám sát lề phải, nằm giữa màn hình */
+  #mobile-edge-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 50%;
+    right: -28px; /* Đẩy hẳn nút ra ngoài viền phải của sidebar */
+    transform: translateY(-50%);
+    width: 28px;
+    height: 60px;
+    background: var(--bg-c);
+    border: 1px solid var(--b2);
+    border-left: none;
+    border-radius: 0 12px 12px 0; /* Bo tròn góc ngoài */
+    color: var(--t1);
+    z-index: 300;
+    cursor: pointer;
+    box-shadow: 4px 0 12px rgba(0,0,0,0.3);
+  }
+  #mobile-edge-close:active { background: var(--bg-i); }
+
   #sidebar { 
     position: absolute; 
     height: 100%; 
     z-index: 200;
     box-shadow: 10px 0 40px rgba(0,0,0,0.6);
+    overflow: visible; /* QUAN TRỌNG: Cho phép nút lồi ra ngoài viền */
   }
   .bubble-user { max-width: 90%; }
   .w-title { font-size: 2rem; }
@@ -3287,6 +3293,10 @@ body.bubble-frost .bubble-user {
 
 <!-- ═══ SIDEBAR ═══════════════════════════════════════════════ -->
 <div id="sidebar">
+  <button id="mobile-edge-close" onclick="toggleSidebar()">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+  </button>
+
   <div class="s-top">
     <div class="logo">
       <div class="logo-gem"><img src="/icon.png" alt="H" style="width:24px;height:24px;border-radius:6px;object-fit:cover"></div>
@@ -5185,9 +5195,35 @@ function closeShortcuts() { document.getElementById("shortcuts-modal").classList
 /* ──────────────────────────────────────────────────────────
    SIDEBAR
 ────────────────────────────────────────────────────────── */
+/* ──────────────────────────────────────────────────────────
+   SIDEBAR (SWIPE & TOGGLE)
+────────────────────────────────────────────────────────── */
 function toggleSidebar() {
   document.getElementById("sidebar").classList.toggle("collapsed");
 }
+
+// Tính năng vuốt (Swipe) trên Mobile
+let touchStartX = 0;
+let touchEndX = 0;
+
+document.addEventListener('touchstart', e => { 
+  touchStartX = e.changedTouches[0].screenX; 
+}, {passive: true});
+
+document.addEventListener('touchend', e => {
+  touchEndX = e.changedTouches[0].screenX;
+  if (window.innerWidth <= 640) {
+    const sidebar = document.getElementById("sidebar");
+    // Vuốt sang trái để ĐÓNG (khoảng cách vuốt > 50px)
+    if (touchStartX - touchEndX > 50) {
+      sidebar.classList.add("collapsed");
+    }
+    // Vuốt sang phải để MỞ (vuốt > 50px và bắt đầu vuốt từ sát mép trái màn hình)
+    if (touchEndX - touchStartX > 50 && touchStartX < 30) {
+      sidebar.classList.remove("collapsed");
+    }
+  }
+}, {passive: true});
 
 /* ──────────────────────────────────────────────────────────
    MARKDOWN + CODE HIGHLIGHT
