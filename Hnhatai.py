@@ -1292,7 +1292,7 @@ body::after {
   position: relative;
   z-index: 10;
   transition: transform .3s cubic-bezier(.4,0,.2,1), min-width .3s, width .3s;
-  overflow: hidden;
+  overflow: visible; /* CHUYỂN THÀNH VISIBLE ĐỂ NÚT LỒI RA TRÊN PC */
 }
 #sidebar.collapsed {
   transform: translateX(calc(-1 * var(--sw)));
@@ -1300,7 +1300,12 @@ body::after {
   width: 0;
   border: none;
 }
-
+/* Làm mờ các thành phần bên trong khi sidebar đóng để chữ không bị tràn ra ngoài */
+#sidebar.collapsed > *:not(#mobile-edge-close) {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
 /* Sidebar top */
 .s-top {
   padding: 18px 14px 12px;
@@ -2265,39 +2270,40 @@ body::after {
 }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+/* ═══ NÚT ĐÓNG/MỞ SIDEBAR (CHO CẢ PC VÀ MOBILE) ════════════ */
+#mobile-edge-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: 50%;
+  right: -28px; 
+  transform: translateY(-50%);
+  width: 28px;
+  height: 60px;
+  background: var(--bg-c);
+  border: 1px solid var(--b2);
+  border-left: none;
+  border-radius: 0 12px 12px 0; 
+  color: var(--t1);
+  z-index: 300;
+  cursor: pointer;
+  box-shadow: 4px 0 12px rgba(0,0,0,0.3);
+  transition: background 0.2s;
+}
+#mobile-edge-close:active { background: var(--bg-i); }
+
+/* Hiệu ứng xoay mũi tên siêu mượt khi đóng/mở */
+#mobile-edge-close svg { transition: transform 0.3s ease; }
+#sidebar.collapsed #mobile-edge-close svg { transform: rotate(180deg); }
+
 /* ═══ RESPONSIVE ════════════════════════════════════════════ */
-/* Ẩn nút cạnh trên máy tính */
-#mobile-edge-close { display: none; }
-
 @media (max-width: 640px) {
-  /* Hiện nút trên mobile: Bám sát lề phải, nằm giữa màn hình */
-  #mobile-edge-close {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: absolute;
-    top: 50%;
-    right: -28px; /* Đẩy hẳn nút ra ngoài viền phải của sidebar */
-    transform: translateY(-50%);
-    width: 28px;
-    height: 60px;
-    background: var(--bg-c);
-    border: 1px solid var(--b2);
-    border-left: none;
-    border-radius: 0 12px 12px 0; /* Bo tròn góc ngoài */
-    color: var(--t1);
-    z-index: 300;
-    cursor: pointer;
-    box-shadow: 4px 0 12px rgba(0,0,0,0.3);
-  }
-  #mobile-edge-close:active { background: var(--bg-i); }
-
   #sidebar { 
     position: absolute; 
     height: 100%; 
     z-index: 200;
     box-shadow: 10px 0 40px rgba(0,0,0,0.6);
-    overflow: visible; /* QUAN TRỌNG: Cho phép nút lồi ra ngoài viền */
   }
   .bubble-user { max-width: 90%; }
   .w-title { font-size: 2rem; }
