@@ -4433,6 +4433,15 @@ async function boot() {
     setModelUI(CURRENT_MODEL);
     if (cfg.theme === "light") document.documentElement.setAttribute("data-theme", "light");
     
+    // 1. TỰ ĐỘNG ĐIỀN KEY MẶC ĐỊNH CHO NGƯỜI MỚI (CHƯA CÓ TRONG LOCALSTORAGE)
+    if (localStorage.getItem("hnhat_groq_key") === null) {
+      localStorage.setItem("hnhat_groq_key", "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");
+    }
+    if (localStorage.getItem("hnhat_gemini_key") === null) {
+      localStorage.setItem("hnhat_gemini_key", "AIzaSyCy8Y9KAhzLKvRyoOE0U5otdFWwSi2i48Y");
+    }
+
+    // 2. KIỂM TRA NẾU VẪN KHÔNG CÓ KEY (Do cố tình xóa) THÌ MỞ BẢNG CÀI ĐẶT
     const hasGroq = !!localStorage.getItem("hnhat_groq_key");
     if (!hasGroq) setTimeout(openSettings, 800);
   } catch(e) {
