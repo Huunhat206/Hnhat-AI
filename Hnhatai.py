@@ -2266,8 +2266,33 @@ body::after {
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* ═══ RESPONSIVE ════════════════════════════════════════════ */
+.mobile-close-btn {
+  display: none; 
+  background: none;
+  border: none;
+  color: var(--t2);
+  font-size: 18px;
+  padding: 4px 8px;
+  cursor: pointer;
+  margin-left: auto;
+  border-radius: 6px;
+  transition: 0.2s;
+}
+.mobile-close-btn:hover {
+  background: rgba(220, 38, 38, 0.15);
+  color: #f87171;
+}
+
 @media (max-width: 640px) {
-  #sidebar { position: absolute; height: 100%; }
+  /* Cho phép nút đóng hiện lên khi màn hình nhỏ */
+  .mobile-close-btn { display: block; }
+  
+  #sidebar { 
+    position: absolute; 
+    height: 100%; 
+    z-index: 200;
+    box-shadow: 10px 0 40px rgba(0,0,0,0.6);
+  }
   .bubble-user { max-width: 90%; }
   .w-title { font-size: 2rem; }
   #input-wrap { padding: 10px 12px 13px; }
@@ -4470,6 +4495,9 @@ async function loadChat(id) {
     document.querySelectorAll(".chat-item").forEach(el => el.classList.remove("active"));
     document.getElementById("ci-" + id)?.classList.add("active");
     scrollToBottom();
+    
+    // Tự động đóng sidebar nếu đang dùng điện thoại
+    if (window.innerWidth <= 640) toggleSidebar();
   } catch(e) {
     showToast("❌ Lỗi tải chat: " + e.message);
   }
