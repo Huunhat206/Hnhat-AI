@@ -2303,12 +2303,19 @@ body::after {
 @media (max-width: 640px) {
   .mobile-close-btn { display: block; }
   
-  #sidebar { 
-    position: absolute; 
-    height: 100%; 
-    max-width: 85vw; /* Sidebar không bao giờ chiếm 100% màn hình, luôn chừa khe hở */
-    z-index: 200;
-    box-shadow: 10px 0 40px rgba(0,0,0,0.6);
+  #sidebar {
+  width: var(--sw);
+  min-width: var(--sw);
+  background: var(--bg-s);
+  border-right: 1px solid var(--b1);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 10;
+  transition: transform .3s cubic-bezier(.4,0,.2,1); /* Bỏ animate width để tránh giật layout */
+  overflow: visible;
+  will-change: transform; /* Ép dùng GPU */
+  transform: translateZ(0);
   }
   
   /* Căn chỉnh các nút Cài đặt ở góc trái tự động xuống dòng nếu thiếu chỗ */
@@ -2856,6 +2863,8 @@ body.font-lg .msg-content { font-size: .98rem !important; }
   opacity: 0;
   transition: opacity .5s ease;
   pointer-events: none;
+  will-change: filter, transform, opacity; /* Tăng tốc phần cứng cho hình nền */
+  transform: translate3d(0,0,0);
 }
 #bg-layer.active { opacity: 1; }
 
@@ -4723,11 +4732,13 @@ async function streamGroqChat(userText, fileMeta) {
           }
           fullText += parsed.content;
           contentEl.innerHTML = renderMarkdown(fullText);
-          highlightCodeBlocks(contentEl);
-          if (typeof renderMathIn === "function") renderMathIn(contentEl);
           scrollToBottom();
         }
         if (parsed.done) {
+          // TÔ MÀU CODE & TOÁN KHI AI ĐÃ GÕ XONG HOÀN TOÀN
+          highlightCodeBlocks(contentEl);
+          if (typeof renderMathIn === "function") renderMathIn(contentEl);
+          
           if (parsed.chat_id) CURRENT_CHAT_ID = parsed.chat_id;
           if (aiGroup) {
             const actEl = aiGroup.querySelector(".msg-actions");
@@ -4794,11 +4805,12 @@ async function streamVision(userText, fileMeta) {
           }
           fullText += parsed.content;
           contentEl.innerHTML = renderMarkdown(fullText);
-          highlightCodeBlocks(contentEl);
-          if (typeof renderMathIn === "function") renderMathIn(contentEl);
           scrollToBottom();
         }
         if (parsed.done) {
+          highlightCodeBlocks(contentEl);
+          if (typeof renderMathIn === "function") renderMathIn(contentEl);
+          
           if (aiGroup) {
             const actEl = aiGroup.querySelector(".msg-actions");
             if (actEl) actEl.innerHTML = buildActionButtons(fullText);
@@ -4909,13 +4921,14 @@ async function streamCodeAnalyze(userText, fileMeta) {
           }
           fullText += parsed.content;
           contentEl.innerHTML = renderMarkdown(fullText);
-          highlightCodeBlocks(contentEl);
-          if (typeof renderMathIn === "function") renderMathIn(contentEl);
           scrollToBottom();
         }
 
         if (parsed.done) {
           removeElement(progressId);
+          highlightCodeBlocks(contentEl);
+          if (typeof renderMathIn === "function") renderMathIn(contentEl);
+          
           if (aiGroup) {
             const actEl = aiGroup.querySelector(".msg-actions");
             if (actEl) actEl.innerHTML = buildActionButtons(fullText);
@@ -5376,7 +5389,10 @@ function switchAndAsk(model, text) {
 
 function scrollToBottom() {
   const ca = document.getElementById("chat-area");
-  ca.scrollTop = ca.scrollHeight;
+  // Cho phép trình duyệt tối ưu frame hình để cuộn mượt nhất
+  requestAnimationFrame(() => {
+    ca.scrollTop = ca.scrollHeight;
+  });
 }
 
 /* ══════════════════════════════════════════════════════════
