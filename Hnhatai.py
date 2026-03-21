@@ -567,7 +567,7 @@ def r_chat_stream():
     file_meta  = d.get("file")          # {type, name, file_id, content, b64, mime, size}
 
     cfg = load_config()
-    key = cfg.get("groq_key", "").strip()
+    key = request.headers.get("X-Groq-Key", "").strip()
 
     if not key:
         def _e():
@@ -697,7 +697,7 @@ def r_code_analyze():
     model_name = d.get("model", "Hnhat Code")
 
     cfg = load_config()
-    key = cfg.get("groq_key", "").strip()
+    key = request.headers.get("X-Groq-Key", "").strip()
 
     if not key:
         def _e():
@@ -868,7 +868,7 @@ def r_vision():
     user_msg   = d.get("user_msg", prompt_txt)
 
     cfg = load_config()
-    gem_key = cfg.get("gemini_key", "").strip()
+    gem_key = request.headers.get("X-Gemini-Key", "").strip()
 
     if not GEMINI_LIB:
         def _e():
@@ -4391,7 +4391,9 @@ async function boot() {
     CURRENT_MODEL = cfg.default_model || "Hnhat Pro";
     setModelUI(CURRENT_MODEL);
     if (cfg.theme === "light") document.documentElement.setAttribute("data-theme", "light");
-    if (!cfg.has_groq) setTimeout(openSettings, 800);
+    
+    const hasGroq = !!localStorage.getItem("hnhat_groq_key");
+    if (!hasGroq) setTimeout(openSettings, 800);
   } catch(e) {
     console.warn("Config load failed:", e);
   }
@@ -5876,8 +5878,14 @@ async function openSettings() {
     document.getElementById("default-model-input").value    = cfg.default_model || "Hnhat Pro";
     const gks = document.getElementById("groq-key-status");
     const gems = document.getElementById("gemini-key-status");
-    if (gks)  gks.innerHTML  = cfg.has_groq   ? '<span class="status-dot ok"></span>Đã cài'   : '<span class="status-dot no"></span>Chưa cài';
-    if (gems) gems.innerHTML = cfg.has_gemini ? '<span class="status-dot ok"></span>Đã cài'   : '<span class="status-dot no"></span>Chưa cài';
+    
+    const hasGroq = !!localStorage.getItem("hnhat_groq_key");
+    const hasGemini = !!localStorage.getItem("hnhat_gemini_key");
+    if (gks)  gks.innerHTML  = hasGroq   ? '<span class="status-dot ok"></span>Đã cài'   : '<span class="status-dot no"></span>Chưa cài';
+    if (gems) gems.innerHTML = hasGemini ? '<span class="status-dot ok"></span>Đã cài'   : '<span class="status-dot no"></span>Chưa cài';
+    
+    document.getElementById("groq-key-input").value = localStorage.getItem("hnhat_groq_key") || "";
+    document.getElementById("gemini-key-input").value = localStorage.getItem("hnhat_gemini_key") || "";
 
     // Restore temp slider
     const ts = document.getElementById("temp-slider");
@@ -5928,6 +5936,9 @@ async function saveSettings() {
   const temp     = getTemperature();
   const bubble   = document.getElementById("bubble-style-input")?.value || "default";
   const sendEnter= document.getElementById("send-enter-toggle")?.checked !== false;
+
+  if (groqKey) localStorage.setItem("hnhat_groq_key", groqKey);
+  if (gemKey)  localStorage.setItem("hnhat_gemini_key", gemKey);
 
   const body = { default_model: defModel, temperature: temp };
   if (groqKey) body.groq_key       = groqKey;
@@ -6034,10 +6045,19 @@ async function apiGet(url) {
   return r.json();
 }
 
+function getAuthHeaders(extra = {}) {
+  return {
+    "Content-Type": "application/json",
+    "X-Groq-Key": localStorage.getItem("hnhat_groq_key") || "",
+    "X-Gemini-Key": localStorage.getItem("hnhat_gemini_key") || "",
+    ...extra
+  };
+}
+
 async function apiPost(url, body) {
   const r = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify(body),
   });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -6045,7 +6065,7 @@ async function apiPost(url, body) {
 }
 
 async function apiCall(url, method) {
-  const r = await fetch(url, { method });
+  const r = await fetch(url, { method, headers: getAuthHeaders() });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.json();
 }
@@ -6053,7 +6073,7 @@ async function apiCall(url, method) {
 async function startSSE(url, body) {
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
