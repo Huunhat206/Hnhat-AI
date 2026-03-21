@@ -282,36 +282,50 @@ TEXT_EXTS = {
 # ─────────────────────────────────────────────────────────────
 #  HELPERS
 # ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────
+#  HELPERS
+# ─────────────────────────────────────────────────────────────
+def get_data_dir():
+    """ Lấy thư mục chứa dữ liệu. Tự động dùng thư mục 'data' nếu trên Cloud """
+    import os
+    if getattr(sys, 'frozen', False):
+        base = Path(sys.executable).parent
+    else:
+        base = Path(__file__).parent
+        
+    # Railway/Cloud: Mount volume vào /app/data
+    if os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("PORT"):
+        data_path = base / "data"
+        data_path.mkdir(parents=True, exist_ok=True)
+        return data_path
+    return base
+
+# Khởi tạo thư mục dữ liệu chuẩn
+DATA_DIR = get_data_dir()
+CONFIG_FILE  = DATA_DIR / "hnhat_config.json"
+CHATS_FILE   = DATA_DIR / "hnhat_chats.json"
+UPLOADS_DIR  = DATA_DIR / "hnhat_uploads"
+UPLOADS_DIR.mkdir(exist_ok=True)
+
 def get_client_id():
-    """Lấy Username từ Frontend gửi lên để tạo file lưu trữ riêng biệt"""
+    """Lấy Username từ Header để tách biệt lịch sử"""
     try:
         from flask import request
         username = request.headers.get("X-Username", "").strip()
-        if not username:
-            return "guest"
-        
-        # Xóa các ký tự đặc biệt để làm tên file an toàn (chỉ giữ chữ và số)
+        if not username: return "guest"
         import re
         safe_name = re.sub(r'[^a-zA-Z0-9_]', '', username.replace(" ", "_"))
         return f"user_{safe_name}"
-    except Exception:
+    except:
         return "guest"
 
 def load_config() -> dict:
     cid = get_client_id()
     path = DATA_DIR / f"hnhat_config_{cid}.json"
     if path.exists():
-        try:
-            return json.loads(path.read_text("utf-8"))
-        except Exception:
-            pass
-    return {
-        "groq_key": "",
-        "gemini_key": "",
-        "default_model": "Hnhat Pro",
-        "theme": "dark",
-        "system_prompt": "",
-    }
+        try: return json.loads(path.read_text("utf-8"))
+        except: pass
+    return {"groq_key": "", "gemini_key": "", "default_model": "Hnhat Pro", "theme": "dark"}
 
 def save_config(c: dict):
     cid = get_client_id()
@@ -322,10 +336,8 @@ def load_chats() -> dict:
     cid = get_client_id()
     path = DATA_DIR / f"hnhat_chats_{cid}.json"
     if path.exists():
-        try:
-            return json.loads(path.read_text("utf-8"))
-        except Exception:
-            pass
+        try: return json.loads(path.read_text("utf-8"))
+        except: pass
     return {}
 
 def save_chats(c: dict):
@@ -4534,37 +4546,6 @@ function checkLogin() {
 }
 
 // ── KHỞI ĐỘNG HỆ THỐNG ──
-async function boot() {
-  // Nếu chưa đăng nhập thì dừng lại, chờ người dùng nhập tên
-  if (!checkLogin()) return;
-
-  try {
-    const cfg = await apiGet("/api/config");
-    CURRENT_MODEL = cfg.default_model || "Hnhat Pro";
-    setModelUI(CURRENT_MODEL);
-    if (cfg.theme === "light") document.documentElement.setAttribute("data-theme", "light");
-    
-    // Tự động điền key cho người mới (nếu chưa có)
-    if (localStorage.getItem("hnhat_groq_key") === null) {
-      localStorage.setItem("hnhat_groq_key", "ĐIỀN_KEY_CỦA_BẠN_VÀO_ĐÂY");
-    }
-    if (localStorage.getItem("hnhat_gemini_key") === null) {
-      localStorage.setItem("hnhat_gemini_key", "ĐIỀN_KEY_CỦA_BẠN_VÀO_ĐÂY");
-    }
-
-    const hasGroq = !!localStorage.getItem("hnhat_groq_key");
-    if (!hasGroq) setTimeout(openSettings, 800);
-  } catch(e) {
-    console.warn("Config load failed:", e);
-  }
-
-  await loadChatList();
-  setupGlobalDrag();
-  setupChatTitleRename();
-  restoreLocalPrefs();
-  loadBgState();
-  restoreBubblePrefs();
-}
     CURRENT_MODEL = cfg.default_model || "Hnhat Pro";
     setModelUI(CURRENT_MODEL);
     if (cfg.theme === "light") document.documentElement.setAttribute("data-theme", "light");
