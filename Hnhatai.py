@@ -6083,15 +6083,21 @@ boot();
 #  ENTRY POINT
 # ─────────────────────────────────────────────────────────────
 if __name__ == "__main__":
+    import os
+    import time
+    import threading
+    import subprocess
+    import webbrowser
+
+    # Tự động nhận diện xem đang ở trên mạng hay ở máy tính nhà
+    is_cloud = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RENDER") or os.environ.get("PORT"))
+    port = int(os.environ.get("PORT", 5000))
+
     def _open_app_window():
-        import time
-        import subprocess
-        import webbrowser
         time.sleep(1.5) # Đợi server khởi động
-        
-        url = "http://127.0.0.1:5000"
+        url = f"http://127.0.0.1:{port}"
         try:
-            # Ưu tiên 1: Mở bằng Microsoft Edge (có sẵn trên mọi Windows) ở chế độ Ứng dụng độc lập
+            # Ưu tiên 1: Mở bằng Microsoft Edge ở chế độ Ứng dụng độc lập
             subprocess.Popen(['msedge', f'--app={url}'])
         except Exception:
             try:
@@ -6101,9 +6107,24 @@ if __name__ == "__main__":
                 # Dự phòng: Trở về mở bằng tab trình duyệt bình thường
                 webbrowser.open(url)
 
-    print("Đang khởi động Hnhat AI Desktop...")
-    # Chạy lệnh mở cửa sổ ở một luồng phụ
-    threading.Thread(target=_open_app_window, daemon=True).start()
+    print()
+    print("═" * 62)
+    print("  ⚡  H N H A T   A I   v3.0")
+    print("  Text: Groq API  |  Vision: Gemini API")
     
-    # Khởi động server
-    app.run(host="127.0.0.1", port=5000, debug=False, threaded=True)
+    if is_cloud:
+        print("  ☁️   Mode: CLOUD (Railway / Render)")
+        print(f"  🌐  Đang chạy trên host 0.0.0.0, cổng {port}")
+        print("═" * 62)
+        # Chạy public cho Cloud (Không bật cửa sổ trình duyệt vì server không có màn hình)
+        app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
+    else:
+        print("  💻  Mode: LOCAL DESKTOP")
+        print(f"  🌐  Đang chạy trên host 127.0.0.1, cổng {port}")
+        print("═" * 62)
+        print("  📋  Phím tắt: Ctrl+K (Chat mới) | Ctrl+, (Settings)")
+        print("═" * 62)
+        print()
+        # Chạy local an toàn, bật cửa sổ App Desktop xịn xò
+        threading.Thread(target=_open_app_window, daemon=True).start()
+        app.run(host="127.0.0.1", port=port, debug=False, threaded=True)
