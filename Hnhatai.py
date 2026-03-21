@@ -4515,18 +4515,68 @@ function submitLogin() {
     showToast("⚠️ Vui lòng nhập tên của bạn!", "error");
     return;
   }
-  // Lưu tên vào trình duyệt
+  // Lưu tên vào máy khách
   localStorage.setItem("hnhat_username", nameInput);
   
-  // Hiệu ứng mờ dần rồi biến mất
+  // Hiệu ứng biến mất mượt mà
   const overlay = document.getElementById("login-overlay");
   overlay.style.opacity = "0";
   setTimeout(() => {
     overlay.style.display = "none";
-    boot(); // Gọi hàm boot để bắt đầu tải dữ liệu sau khi đã có tên
+    boot(); // Khởi động app sau khi đã có tên
   }, 300);
 }
 
+// Kiểm tra trạng thái đăng nhập
+function checkLogin() {
+  const savedName = localStorage.getItem("hnhat_username");
+  const overlay = document.getElementById("login-overlay");
+  if (!savedName) {
+    overlay.style.display = "flex";
+    overlay.style.opacity = "1";
+    return false;
+  }
+  overlay.style.display = "none";
+  
+  const welcomeTitle = document.getElementById("welcome-title");
+  if (welcomeTitle) welcomeTitle.textContent = `Xin chào ${savedName}, tôi là Hnhat AI`;
+  return true;
+}
+
+// ── KHỞI ĐỘNG HỆ THỐNG ──
+async function boot() {
+  if (!checkLogin()) return;
+
+  try {
+    const cfg = await apiGet("/api/config");
+    CURRENT_MODEL = cfg.default_model || "Hnhat Pro";
+    setModelUI(CURRENT_MODEL);
+    if (cfg.theme === "light") document.documentElement.setAttribute("data-theme", "light");
+    
+    // Tự động điền API Key mặc định của bạn (Nếu máy khách chưa có)
+    if (localStorage.getItem("hnhat_groq_key") === null) {
+      localStorage.setItem("hnhat_groq_key", "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");
+    }
+    if (localStorage.getItem("hnhat_gemini_key") === null) {
+      localStorage.setItem("hnhat_gemini_key", "AIzaSyCy8Y9KAhzLKvRyoOE0U5otdFWwSi2i48Y");
+    }
+
+    const hasGroq = !!localStorage.getItem("hnhat_groq_key");
+    if (!hasGroq) setTimeout(openSettings, 800);
+  } catch(e) {
+    console.warn("Config load failed:", e);
+    // Nếu bị lỗi 502/Bad Gateway, vẫn cho phép hiện giao diện để người dùng biết
+    showToast("⚠️ Không thể kết nối server, vui lòng tải lại trang", "error");
+  }
+
+  // Tải các thành phần giao diện khác
+  await loadChatList();
+  setupGlobalDrag();
+  setupChatTitleRename();
+  restoreLocalPrefs();
+  loadBgState();
+  restoreBubblePrefs();
+}
 // Kiểm tra xem đã có tên chưa
 function checkLogin() {
   const savedName = localStorage.getItem("hnhat_username");
