@@ -323,17 +323,7 @@ def save_chats(c: dict):
     path.write_text(json.dumps(c, ensure_ascii=False, indent=2), "utf-8")
 
 
-def load_chats() -> dict:
-    if CHATS_FILE.exists():
-        try:
-            return json.loads(CHATS_FILE.read_text("utf-8"))
-        except Exception:
-            pass
-    return {}
 
-
-def save_chats(c: dict):
-    CHATS_FILE.write_text(json.dumps(c, ensure_ascii=False, indent=2), "utf-8")
 
 
 def groq_client(key: str) -> OpenAI:
@@ -6183,7 +6173,9 @@ document.addEventListener("keydown", e => {
    UTILS
 ────────────────────────────────────────────────────────── */
 async function apiGet(url) {
-  const r = await fetch(url);
+  // Thêm đuôi thời gian vào URL để lừa trình duyệt luôn phải tải mới, chống cache tuyệt đối
+  const noCacheUrl = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
+  const r = await fetch(noCacheUrl, { cache: "no-store" });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.json();
 }
