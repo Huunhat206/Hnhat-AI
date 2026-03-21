@@ -1245,7 +1245,8 @@ body {
   background: var(--bg);
   color: var(--t1);
   display: flex;
-  height: 100vh;
+  height: 100vh; /* Fallback cho trình duyệt cũ */
+  height: 100dvh; /* Tự động co giãn tránh thanh địa chỉ/điều hướng của điện thoại */
   overflow: hidden;
   position: relative;
 }
@@ -1932,7 +1933,8 @@ body::after {
 #input-wrap {
   position: absolute;
   bottom: 0; left: 0; right: 0;
-  padding: 11px 18px 17px;
+  /* Dùng safe-area-inset để tự động né vùng "tai thỏ" hoặc viền dưới của điện thoại */
+  padding: 11px 18px calc(17px + env(safe-area-inset-bottom));
   background: linear-gradient(to top, var(--bg) 65%, transparent);
 }
 #input-box {
@@ -2299,16 +2301,34 @@ body::after {
 
 /* ═══ RESPONSIVE ════════════════════════════════════════════ */
 @media (max-width: 640px) {
+  .mobile-close-btn { display: block; }
+  
   #sidebar { 
     position: absolute; 
     height: 100%; 
+    max-width: 85vw; /* Sidebar không bao giờ chiếm 100% màn hình, luôn chừa khe hở */
     z-index: 200;
     box-shadow: 10px 0 40px rgba(0,0,0,0.6);
   }
+  
+  /* Căn chỉnh các nút Cài đặt ở góc trái tự động xuống dòng nếu thiếu chỗ */
+  .s-foot { flex-wrap: wrap; padding: 10px; }
+  .sf-btn { padding: 8px 4px; }
+  
   .bubble-user { max-width: 90%; }
   .w-title { font-size: 2rem; }
-  #input-wrap { padding: 10px 12px 13px; }
+  
+  /* Thanh chat co giãn và né mép dưới an toàn */
+  #input-wrap { padding: 8px 10px calc(10px + env(safe-area-inset-bottom)); }
   .model-dd { right: -10px; width: 270px; }
+  
+  /* Thu nhỏ bảng Cài đặt, giảm viền để hiện được nhiều chữ hơn trên điện thoại */
+  .modal-card, .pm-card, .stats-card, .shortcuts-card {
+    padding: 20px 16px 16px;
+    width: 95%;
+    border-radius: 16px;
+  }
+  .modal-title { margin-bottom: 14px; font-size: 1rem; }
 }
 
 /* ═══ EXTRA THEMES ══════════════════════════════════════════ */
