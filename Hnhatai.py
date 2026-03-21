@@ -267,10 +267,26 @@ TEXT_EXTS = {
 # ─────────────────────────────────────────────────────────────
 #  HELPERS
 # ─────────────────────────────────────────────────────────────
+def get_client_id():
+    """Lấy IP thật của khách, tương thích với Railway/Render (đứng sau Proxy)"""
+    try:
+        from flask import request
+        if request.headers.getlist("X-Forwarded-For"):
+            ip = request.headers.getlist("X-Forwarded-For")[0].split(',')[0].strip()
+        else:
+            ip = request.remote_addr
+            
+        safe_ip = ip.replace(".", "_").replace(":", "_")
+        return f"ip_{safe_ip}"
+    except Exception:
+        return "default"
+
 def load_config() -> dict:
-    if CONFIG_FILE.exists():
+    cid = get_client_id()
+    path = DATA_DIR / f"hnhat_config_{cid}.json"
+    if path.exists():
         try:
-            return json.loads(CONFIG_FILE.read_text("utf-8"))
+            return json.loads(path.read_text("utf-8"))
         except Exception:
             pass
     return {
@@ -281,9 +297,25 @@ def load_config() -> dict:
         "system_prompt": "",
     }
 
-
 def save_config(c: dict):
-    CONFIG_FILE.write_text(json.dumps(c, ensure_ascii=False, indent=2), "utf-8")
+    cid = get_client_id()
+    path = DATA_DIR / f"hnhat_config_{cid}.json"
+    path.write_text(json.dumps(c, ensure_ascii=False, indent=2), "utf-8")
+
+def load_chats() -> dict:
+    cid = get_client_id()
+    path = DATA_DIR / f"hnhat_chats_{cid}.json"
+    if path.exists():
+        try:
+            return json.loads(path.read_text("utf-8"))
+        except Exception:
+            pass
+    return {}
+
+def save_chats(c: dict):
+    cid = get_client_id()
+    path = DATA_DIR / f"hnhat_chats_{cid}.json"
+    path.write_text(json.dumps(c, ensure_ascii=False, indent=2), "utf-8")
 
 
 def load_chats() -> dict:
