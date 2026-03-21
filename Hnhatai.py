@@ -279,28 +279,25 @@ TEXT_EXTS = {
     ".dockerfile", ".makefile", ".gradle", ".cmake", ".nim",
 }
 
-# ─────────────────────────────────────────────────────────────
-#  HELPERS
-# ─────────────────────────────────────────────────────────────
+
 # ─────────────────────────────────────────────────────────────
 #  HELPERS
 # ─────────────────────────────────────────────────────────────
 def get_data_dir():
     """ Lấy thư mục chứa dữ liệu. Tự động dùng thư mục 'data' nếu trên Cloud """
     import os
-    if getattr(sys, 'frozen', False):
-        base = Path(sys.executable).parent
-    else:
-        base = Path(__file__).parent
+    # Đường dẫn gốc chứa file code
+    base = Path(__file__).parent
         
-    # Railway/Cloud: Mount volume vào /app/data
+    # Nếu chạy trên Railway, bắt buộc dùng thư mục /app/data đã gắn Volume
     if os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("PORT"):
-        data_path = base / "data"
+        data_path = Path("/app/data")
         data_path.mkdir(parents=True, exist_ok=True)
         return data_path
+        
     return base
 
-# Khởi tạo thư mục dữ liệu chuẩn
+# Khởi tạo đường dẫn dữ liệu
 DATA_DIR = get_data_dir()
 CONFIG_FILE  = DATA_DIR / "hnhat_config.json"
 CHATS_FILE   = DATA_DIR / "hnhat_chats.json"
