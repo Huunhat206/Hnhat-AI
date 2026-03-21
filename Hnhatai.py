@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 """
 ╔══════════════════════════════════════════════════════════════╗
-║              H N H A T   A I   v3.0                         ║
+║              H N H A T   A I   v3.0                          ║
 ║                                                              ║
-║  Text  → Groq API  (llama / deepseek / mixtral / qwen…)     ║
-║  Image → Gemini API (gemini-1.5-flash / pro)                 ║
+║  Text  → Groq API  (llama / deepseek / mixtral / qwen…)      ║
+║  Image → Gemini API (gemini-2.5-flash / pro)                 ║
 ║                                                              ║
 ║  10 Models · 20MB Code Upload · Chunked Analysis             ║
 ║  Streaming · Vision · Export · Dark/Light · 3000+ lines      ║
@@ -49,12 +49,12 @@ except ImportError:
 
 # Gemini
 try:
-    import google.genai as genai
+    import google.generativeai as genai
     GEMINI_LIB = True
 except ImportError:
     GEMINI_LIB = False
     genai = None
-    print("  [WARN] google-genai not installed. Run: pip install google-geneai")
+    print("  [WARN] google-generativeai not installed. Run: pip install google-generativeai")
 
 # PIL for image handling
 try:
@@ -68,18 +68,31 @@ if not GROQ_LIB:
     print("\n  ERROR: pip install flask openai\n")
     sys.exit(1)
 
+def get_data_dir():
+    """ Lấy thư mục chứa file .exe đang chạy để lưu file dữ liệu (JSON, Uploads) """
+    if getattr(sys, 'frozen', False):
+        return Path(sys.executable).parent
+    return Path(__file__).parent
+
+def resource_path(relative_path):
+    """ Lấy đường dẫn tới các file tĩnh được gói bên trong file .exe (Ảnh) """
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return Path(base_path) / relative_path
+
 # ─────────────────────────────────────────────────────────────
 #  APP + PATHS
 # ─────────────────────────────────────────────────────────────
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "hnhat-v3-2025-change-me")
+app.secret_key = "hnhat-v3-2025"
 
-CONFIG_FILE  = Path("hnhat_config.json")
-CHATS_FILE   = Path("hnhat_chats.json")
-# Trên cloud dùng /tmp, local dùng hnhat_uploads/
-_CLOUD = os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RENDER") or os.environ.get("CLOUD_STORAGE")
-UPLOADS_DIR = Path("/tmp/hnhat_uploads") if _CLOUD else Path("hnhat_uploads")
-UPLOADS_DIR.mkdir(exist_ok=True, parents=True)
+DATA_DIR = get_data_dir()
+CONFIG_FILE  = DATA_DIR / "hnhat_config.json"
+CHATS_FILE   = DATA_DIR / "hnhat_chats.json"
+UPLOADS_DIR  = DATA_DIR / "hnhat_uploads"
+UPLOADS_DIR.mkdir(exist_ok=True)
 
 MAX_FILE_BYTES = 20 * 1024 * 1024          # 20 MB hard cap
 DIRECT_LIMIT   = 1_000_000                 # 1 MB — inject full content
@@ -127,16 +140,16 @@ SYS_REASON = (
 GROQ_BASE = "https://api.groq.com/openai/v1"
 
 MODELS = {
-    # ── PRODUCTION (Groq) ──────────────────────────────────
+    # ── Groq models ────────────────────────────────────────
     "Hnhat Fast": {
         "id": "llama-3.1-8b-instant",
         "api": "groq",
         "icon": "⚡",
         "color": "#f59e0b",
         "badge": "FAST",
-        "desc": "LLaMA 3.1 8B · 560 t/s · Siêu nhanh",
+        "desc": "Siêu nhanh · Tiết kiệm",
         "ctx": "128K",
-        "max_tokens": 8192,
+        "max_tokens": 4096,
         "sys": _BASE,
     },
     "Hnhat Pro": {
@@ -145,21 +158,21 @@ MODELS = {
         "icon": "🔥",
         "color": "#8b5cf6",
         "badge": "PRO",
-        "desc": "LLaMA 3.3 70B · Cân bằng · Thông minh",
+        "desc": "Cân bằng · Thông minh nhất",
         "ctx": "128K",
         "max_tokens": 8192,
         "sys": _BASE,
     },
     "Hnhat Master": {
-        "id": "openai/gpt-oss-120b",
+        "id": "llama-3.3-70b-versatile",
         "api": "groq",
         "icon": "👑",
         "color": "#06b6d4",
         "badge": "MASTER",
-        "desc": "GPT-OSS 120B · Mạnh nhất · 500 t/s",
+        "desc": "LLaMA 3.3 70B · Toàn năng nhất",
         "ctx": "128K",
         "max_tokens": 8192,
-        "sys": _BASE,
+        "sys": SYS_REASON,
     },
     "Hnhat Code": {
         "id": "llama-3.3-70b-versatile",
@@ -167,7 +180,7 @@ MODELS = {
         "icon": "💻",
         "color": "#10b981",
         "badge": "CODE",
-        "desc": "Code chuyên sâu · Upload 20MB",
+        "desc": "Chuyên code · Upload 20MB",
         "ctx": "128K",
         "max_tokens": 8192,
         "sys": SYS_CODE,
@@ -178,58 +191,24 @@ MODELS = {
         "icon": "🧠",
         "color": "#f97316",
         "badge": "REASON",
-        "desc": "QwQ 32B · Chain of Thought · Suy luận",
+        "desc": "QwQ 32B · Tư duy chuỗi",
         "ctx": "128K",
         "max_tokens": 8192,
         "sys": SYS_REASON,
     },
-    "Hnhat Speed": {
-        "id": "openai/gpt-oss-20b",
-        "api": "groq",
-        "icon": "🚀",
-        "color": "#a855f7",
-        "badge": "SPEED",
-        "desc": "GPT-OSS 20B · 1000 t/s · Cực nhanh",
-        "ctx": "128K",
-        "max_tokens": 8192,
-        "sys": _BASE,
-    },
-    "Llama 4 Scout": {
-        "id": "meta-llama/llama-4-scout-17b-16e-instruct",
-        "api": "groq",
-        "icon": "🦙",
-        "color": "#0ea5e9",
-        "badge": "LLAMA4",
-        "desc": "Llama 4 Scout 17B · Model mới nhất",
-        "ctx": "128K",
-        "max_tokens": 8192,
-        "sys": _BASE,
-    },
-    "Compound": {
-        "id": "groq/compound",
-        "api": "groq",
-        "icon": "⚗️",
-        "color": "#14b8a6",
-        "badge": "COMP",
-        "desc": "Groq Compound · Tích hợp web search",
-        "ctx": "128K",
-        "max_tokens": 8192,
-        "sys": _BASE,
-    },
-    # ── GEMINI (Vision) ────────────────────────────────────
     "Hnhat Vision": {
-        "id": "gemini-1.5-flash",
+        "id": "gemini-2.5-flash",
         "api": "gemini",
         "icon": "👁",
         "color": "#4285f4",
         "badge": "VISION",
-        "desc": "Gemini Flash · Phân tích ảnh nhanh",
+        "desc": "Gemini Flash · Phân tích ảnh",
         "ctx": "1M",
         "max_tokens": 4096,
         "sys": SYS_VISION,
     },
     "Hnhat Vision+": {
-        "id": "gemini-1.5-pro",
+        "id": "gemini-2.5-pro",
         "api": "gemini",
         "icon": "🔭",
         "color": "#1a73e8",
@@ -238,6 +217,39 @@ MODELS = {
         "ctx": "1M",
         "max_tokens": 4096,
         "sys": SYS_VISION,
+    },
+    "Kimi K2": {
+        "id": "moonshotai/kimi-k2-instruct",
+        "api": "groq",
+        "icon": "🌀",
+        "color": "#0ea5e9",
+        "badge": "MIXTRAL",
+        "desc": "MoE · Context 32K",
+        "ctx": "32K",
+        "max_tokens": 4096,
+        "sys": _BASE,
+    },
+    "Gemma 2": {
+        "id": "gemma2-9b-it",
+        "api": "groq",
+        "icon": "💎",
+        "color": "#14b8a6",
+        "badge": "GEMMA",
+        "desc": "Gemma 2 · Nhỏ gọn & nhanh",
+        "ctx": "8K",
+        "max_tokens": 2048,
+        "sys": _BASE,
+    },
+    "Compound": {
+        "id": "compound-beta",
+        "api": "groq",
+        "icon": "⚗️",
+        "color": "#a855f7",
+        "badge": "COMP",
+        "desc": "Compound AI · Đa năng",
+        "ctx": "128K",
+        "max_tokens": 4096,
+        "sys": _BASE,
     },
 }
 
@@ -256,32 +268,18 @@ TEXT_EXTS = {
 #  HELPERS
 # ─────────────────────────────────────────────────────────────
 def load_config() -> dict:
-    # Load từ file trước
-    base = {
+    if CONFIG_FILE.exists():
+        try:
+            return json.loads(CONFIG_FILE.read_text("utf-8"))
+        except Exception:
+            pass
+    return {
         "groq_key": "",
         "gemini_key": "",
         "default_model": "Hnhat Pro",
         "theme": "dark",
         "system_prompt": "",
     }
-    if CONFIG_FILE.exists():
-        try:
-            base.update(json.loads(CONFIG_FILE.read_text("utf-8")))
-        except Exception:
-            pass
-
-    # ENV VAR luôn ghi đè (dùng cho Railway / Render / VPS)
-    # Đặt: GROQ_API_KEY, GEMINI_API_KEY, DEFAULT_MODEL, SECRET_KEY
-    env_groq   = os.environ.get("GROQ_API_KEY",   "").strip()
-    env_gemini = os.environ.get("GEMINI_API_KEY",  "").strip()
-    env_model  = os.environ.get("DEFAULT_MODEL",   "").strip()
-    env_sys    = os.environ.get("SYSTEM_PROMPT",   "").strip()
-
-    if env_groq:   base["groq_key"]      = env_groq
-    if env_gemini: base["gemini_key"]    = env_gemini
-    if env_model:  base["default_model"] = env_model
-    if env_sys:    base["system_prompt"] = env_sys
-    return base
 
 
 def save_config(c: dict):
@@ -358,20 +356,6 @@ def sse_error(msg: str) -> str:
 def index():
     return render_template_string(HTML_TEMPLATE)
 
-
-
-# ── Health check (Railway / Render / UptimeRobot) ─────────
-@app.route("/health")
-@app.route("/ping")
-def r_health():
-    cfg = load_config()
-    return jsonify({
-        "status":  "ok",
-        "version": "3.0",
-        "has_groq":   bool(cfg.get("groq_key")),
-        "has_gemini": bool(cfg.get("gemini_key")),
-        "cloud":   bool(_IS_CLOUD),
-    })
 
 # ── Config ────────────────────────────────────────────────────
 
@@ -869,17 +853,24 @@ def r_vision():
 
     def generate():
         try:
-            client = genai.Client(api_key=gem_key)
-            # ... (phần xử lý ảnh content_parts giữ nguyên ở giữa) ...
-            
-            response = client.models.generate_content_stream(
-                model=model_id,
-                contents=content_parts,
-            )
+            genai.configure(api_key=gem_key)
+            img_bytes = base64.b64decode(b64_data)
+
+            if PIL_LIB:
+                img_obj = PILImage.open(BytesIO(img_bytes))
+                content_parts = [prompt_txt, img_obj]
+            else:
+                content_parts = [
+                    {"mime_type": mime_type, "data": img_bytes},
+                    prompt_txt,
+                ]
+
+            g_model  = genai.GenerativeModel(model_id)
+            response = g_model.generate_content(content_parts, stream=True)
 
             full_reply = []
             for chunk_ in response:
-                text_part = chunk_.text
+                text_part = getattr(chunk_, "text", None)
                 if text_part:
                     full_reply.append(text_part)
                     yield sse({"content": text_part})
@@ -919,13 +910,7 @@ def r_vision():
 
 
 # ── Serve PNG icon from same folder as script ─────────────────
-# Tìm icon ở nhiều vị trí (local, cloud, Docker)
-_icon_candidates = [
-    Path(__file__).parent / "hnhatai.png",
-    Path("/app/hnhatai.png"),
-    Path("/tmp/hnhatai.png"),
-]
-ICON_PATH = next((p for p in _icon_candidates if p.exists()), Path(__file__).parent / "hnhatai.png")
+ICON_PATH = resource_path("hnhatai.png")
 
 @app.route("/favicon.ico")
 @app.route("/icon.png")
@@ -3221,30 +3206,6 @@ body.bubble-frost .bubble-user {
   box-shadow: 0 8px 32px rgba(220,38,38,.35) !important;
 }
 
-
-/* ═══ STREAMING OPTIMIZATIONS ══════════════════════════════ */
-.stream-code-wrap {
-  margin: .7em 0;
-  border-radius: var(--r);
-  overflow: hidden;
-  border: 1px solid var(--b2);
-}
-.stream-code-wrap .code-header {
-  background: rgba(255,255,255,.04);
-  border-bottom: 1px solid var(--b1);
-}
-
-/* Smooth text appearance */
-.msg-content {
-  will-change: contents;
-}
-
-/* Prevent layout thrash during streaming */
-#chat-area {
-  contain: layout style;
-  overflow-anchor: none;
-}
-
 </style>
 </head>
 <body>
@@ -3321,14 +3282,14 @@ body.bubble-frost .bubble-user {
         <span class="pill-arrow">▼</span>
 
         <div class="model-dd" id="model-dd">
-          <!-- Production Groq Models -->
-          <div class="dd-section" style="display:block!important">⚡ Groq Models</div>
+          <!-- Groq section -->
+          
 
           <div class="model-opt" data-model="Hnhat Fast" onclick="selectModel('Hnhat Fast', event)">
             <div class="mopt-icon">⚡</div>
             <div class="mopt-body">
               <div class="mopt-name">Hnhat Fast</div>
-              <div class="mopt-desc">LLaMA 3.1 8B · 560 t/s · Siêu nhanh</div>
+              <div class="mopt-desc">Siêu nhanh · Tiết kiệm</div>
               <div class="mopt-meta">
                 <span class="mopt-badge" style="background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.3)">FAST</span>
                 <span class="mopt-ctx">128K</span>
@@ -3340,7 +3301,7 @@ body.bubble-frost .bubble-user {
             <div class="mopt-icon">🔥</div>
             <div class="mopt-body">
               <div class="mopt-name">Hnhat Pro</div>
-              <div class="mopt-desc">LLaMA 3.3 70B · Cân bằng · Thông minh</div>
+              <div class="mopt-desc">Cân bằng · Thông minh nhất</div>
               <div class="mopt-meta">
                 <span class="mopt-badge" style="background:rgba(139,92,246,.15);color:#8b5cf6;border:1px solid rgba(139,92,246,.3)">PRO</span>
                 <span class="mopt-ctx">128K</span>
@@ -3352,21 +3313,9 @@ body.bubble-frost .bubble-user {
             <div class="mopt-icon">👑</div>
             <div class="mopt-body">
               <div class="mopt-name">Hnhat Master</div>
-              <div class="mopt-desc">GPT-OSS 120B · Mạnh nhất · 500 t/s</div>
+              <div class="mopt-desc">Suy luận sâu · Phân tích phức tạp</div>
               <div class="mopt-meta">
                 <span class="mopt-badge" style="background:rgba(6,182,212,.15);color:#06b6d4;border:1px solid rgba(6,182,212,.3)">MASTER</span>
-                <span class="mopt-ctx">128K</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="model-opt" data-model="Hnhat Speed" onclick="selectModel('Hnhat Speed', event)">
-            <div class="mopt-icon">🚀</div>
-            <div class="mopt-body">
-              <div class="mopt-name">Hnhat Speed</div>
-              <div class="mopt-desc">GPT-OSS 20B · 1000 t/s · Cực nhanh</div>
-              <div class="mopt-meta">
-                <span class="mopt-badge" style="background:rgba(168,85,247,.15);color:#a855f7;border:1px solid rgba(168,85,247,.3)">SPEED</span>
                 <span class="mopt-ctx">128K</span>
               </div>
             </div>
@@ -3388,7 +3337,7 @@ body.bubble-frost .bubble-user {
             <div class="mopt-icon">🧠</div>
             <div class="mopt-body">
               <div class="mopt-name">Hnhat Reason</div>
-              <div class="mopt-desc">QwQ 32B · Chain of Thought · Suy luận</div>
+              <div class="mopt-desc">Chain of Thought · Tư duy chuỗi</div>
               <div class="mopt-meta">
                 <span class="mopt-badge" style="background:rgba(249,115,22,.15);color:#f97316;border:1px solid rgba(249,115,22,.3)">REASON</span>
                 <span class="mopt-ctx">128K</span>
@@ -3396,14 +3345,26 @@ body.bubble-frost .bubble-user {
             </div>
           </div>
 
-          <div class="model-opt" data-model="Llama 4 Scout" onclick="selectModel('Llama 4 Scout', event)">
-            <div class="mopt-icon">🦙</div>
+          <div class="model-opt" data-model="Mixtral" onclick="selectModel('Mixtral', event)">
+            <div class="mopt-icon">🌀</div>
             <div class="mopt-body">
-              <div class="mopt-name">Llama 4 Scout</div>
-              <div class="mopt-desc">Llama 4 Scout 17B · Model mới nhất 2026</div>
+              <div class="mopt-name">Mixtral</div>
+              <div class="mopt-desc">Mixture of Experts · Đa năng</div>
               <div class="mopt-meta">
-                <span class="mopt-badge" style="background:rgba(14,165,233,.15);color:#0ea5e9;border:1px solid rgba(14,165,233,.3)">LLAMA4</span>
-                <span class="mopt-ctx">128K</span>
+                <span class="mopt-badge" style="background:rgba(14,165,233,.15);color:#0ea5e9;border:1px solid rgba(14,165,233,.3)">MIXTRAL</span>
+                <span class="mopt-ctx">32K</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="model-opt" data-model="Gemma 2" onclick="selectModel('Gemma 2', event)">
+            <div class="mopt-icon">💎</div>
+            <div class="mopt-body">
+              <div class="mopt-name">Gemma 2</div>
+              <div class="mopt-desc">Gemma 2 · Nhỏ gọn & nhanh</div>
+              <div class="mopt-meta">
+                <span class="mopt-badge" style="background:rgba(20,184,166,.15);color:#14b8a6;border:1px solid rgba(20,184,166,.3)">GEMMA</span>
+                <span class="mopt-ctx">8K</span>
               </div>
             </div>
           </div>
@@ -3412,22 +3373,23 @@ body.bubble-frost .bubble-user {
             <div class="mopt-icon">⚗️</div>
             <div class="mopt-body">
               <div class="mopt-name">Compound</div>
-              <div class="mopt-desc">Groq Compound · Có web search tích hợp</div>
+              <div class="mopt-desc">Compound AI · Đa năng</div>
               <div class="mopt-meta">
-                <span class="mopt-badge" style="background:rgba(20,184,166,.15);color:#14b8a6;border:1px solid rgba(20,184,166,.3)">COMP</span>
+                <span class="mopt-badge" style="background:rgba(168,85,247,.15);color:#a855f7;border:1px solid rgba(168,85,247,.3)">COMP</span>
                 <span class="mopt-ctx">128K</span>
               </div>
             </div>
           </div>
 
           <div class="dd-divider"></div>
-          <div class="dd-section" style="display:block!important">👁 Vision (ảnh)</div>
+          <!-- Gemini section -->
+          
 
           <div class="model-opt" data-model="Hnhat Vision" onclick="selectModel('Hnhat Vision', event)">
             <div class="mopt-icon">👁</div>
             <div class="mopt-body">
               <div class="mopt-name">Hnhat Vision</div>
-              <div class="mopt-desc">Phân tích hình ảnh · OCR · Nhanh</div>
+              <div class="mopt-desc">Phân tích hình ảnh · Nhanh</div>
               <div class="mopt-meta">
                 <span class="mopt-badge" style="background:rgba(66,133,244,.15);color:#4285f4;border:1px solid rgba(66,133,244,.3)">VISION</span>
                 <span class="mopt-ctx">1M</span>
@@ -3439,7 +3401,7 @@ body.bubble-frost .bubble-user {
             <div class="mopt-icon">🔭</div>
             <div class="mopt-body">
               <div class="mopt-name">Hnhat Vision+</div>
-              <div class="mopt-desc">Phân tích ảnh chất lượng cao</div>
+              <div class="mopt-desc">Phân tích hình ảnh · Chất lượng cao</div>
               <div class="mopt-meta">
                 <span class="mopt-badge" style="background:rgba(26,115,232,.15);color:#1a73e8;border:1px solid rgba(26,115,232,.3)">VIS+</span>
                 <span class="mopt-ctx">1M</span>
@@ -3473,8 +3435,8 @@ body.bubble-frost .bubble-user {
       <div class="w-orb"><img src="/icon.png" alt="Hnhat" style="width:50px;height:50px;border-radius:14px;object-fit:cover"></div>
       <div class="w-title">Xin chào, tôi là Hnhat AI</div>
       <div class="w-sub">
-        10 model AI · Siêu tốc · Vision · Upload code 20MB<br>
-        Hỏi bất cứ điều gì hoặc kéo thả file code vào đây!
+        Model AI Made By Hnhat<br>
+        Hỏi bất cứ điều gì hoặc kéo thả vào đây!
       </div>
       <div class="w-chips">
         <div class="chip" onclick="qi('Viết REST API Python Flask + JWT + SQLite, có swagger docs')">🌐 Flask REST API</div>
@@ -3580,16 +3542,16 @@ body.bubble-frost .bubble-user {
     <div class="form-group">
       <label class="form-label">🎭 Model mặc định</label>
       <select class="form-select" id="default-model-input">
-        <option value="Hnhat Fast">⚡ Hnhat Fast — LLaMA 3.1 8B · Siêu nhanh</option>
-        <option value="Hnhat Pro" selected>🔥 Hnhat Pro — LLaMA 3.3 70B · Cân bằng</option>
-        <option value="Hnhat Master">👑 Hnhat Master — GPT-OSS 120B · Mạnh nhất</option>
-        <option value="Hnhat Speed">🚀 Hnhat Speed — GPT-OSS 20B · 1000 t/s</option>
+        <option value="Hnhat Fast">⚡ Hnhat Fast — Siêu nhanh</option>
+        <option value="Hnhat Pro" selected>🔥 Hnhat Pro — Tốt nhất</option>
+        <option value="Hnhat Master">👑 Hnhat Master — DeepSeek R1</option>
         <option value="Hnhat Code">💻 Hnhat Code — Code 20MB</option>
-        <option value="Hnhat Reason">🧠 Hnhat Reason — QwQ 32B · Suy luận</option>
-        <option value="Llama 4 Scout">🦙 Llama 4 Scout — Model mới 2026</option>
-        <option value="Compound">⚗️ Compound — Web search tích hợp</option>
-        <option value="Hnhat Vision">👁 Hnhat Vision — Phân tích ảnh</option>
-        <option value="Hnhat Vision+">🔭 Hnhat Vision+ — Ảnh chất lượng cao</option>
+        <option value="Hnhat Reason">🧠 Hnhat Reason — QwQ</option>
+        <option value="Hnhat Vision">👁 Hnhat Vision — Gemini Flash</option>
+        <option value="Hnhat Vision+">🔭 Hnhat Vision+ — Gemini Pro</option>
+        <option value="Kimi K2">🌙 Kimi K2 — Đa năng</option>
+        <option value="Gemma 2">💎 Gemma 2</option>
+        <option value="Compound">⚗️ Compound</option>
       </select>
     </div>
 
@@ -3929,13 +3891,13 @@ const MODEL_COLORS = {
   "Hnhat Fast":    "#f59e0b",
   "Hnhat Pro":     "#8b5cf6",
   "Hnhat Master":  "#06b6d4",
-  "Hnhat Speed":   "#a855f7",
   "Hnhat Code":    "#10b981",
   "Hnhat Reason":  "#f97316",
-  "Llama 4 Scout": "#0ea5e9",
-  "Compound":      "#14b8a6",
   "Hnhat Vision":  "#4285f4",
   "Hnhat Vision+": "#1a73e8",
+  "Kimi K2":       "#0ea5e9",
+  "Gemma 2":       "#14b8a6",
+  "Compound":      "#a855f7",
 };
 
 const VISION_MODELS = new Set(["Hnhat Vision", "Hnhat Vision+"]);
@@ -4009,6 +3971,28 @@ function applyBgState() {
 }
 
 /* File select from disk */
+function onBgFileSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 8 * 1024 * 1024) {
+    showToast("❌ Ảnh quá lớn! Tối đa 8MB", "error");
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    _bgState.type   = "image";
+    _bgState.data   = e.target.result;
+    _bgState.preset = null;
+    _showPreview(_bgState.data);
+    _clearPresetActive();
+    saveBgState();
+    applyBgState();
+    showToast("🖼️ Đã đặt hình nền!", "success");
+  };
+  reader.readAsDataURL(file);
+  input.value = "";
+}
+
 /* Select gradient preset */
 function setBgPreset(name, el) {
   // Mark active swatch
@@ -4035,9 +4019,27 @@ function setBgPreset(name, el) {
 }
 
 /* Slider handlers */
-
-
-
+function updateBgOpacity(val) {
+  _bgState.opacity = parseInt(val);
+  const el = document.getElementById("bg-opacity-val");
+  if (el) el.textContent = val + "%";
+  applyBgState();
+  saveBgState();
+}
+function updateBgBlur(val) {
+  _bgState.blur = parseInt(val);
+  const el = document.getElementById("bg-blur-val");
+  if (el) el.textContent = val + "px";
+  applyBgState();
+  saveBgState();
+}
+function updateBgDark(val) {
+  _bgState.dark = parseInt(val);
+  const el = document.getElementById("bg-dark-val");
+  if (el) el.textContent = val + "%";
+  applyBgState();
+  saveBgState();
+}
 
 /* Remove background */
 function removeBg() {
@@ -4351,134 +4353,6 @@ function showApiError(msg, model) {
   console.error("[Hnhat AI Error]", msg);
 }
 
-
-/* ══════════════════════════════════════════════════════════
-   ⚡ OPTIMIZED STREAMING RENDERER
-   - Không re-render mỗi chunk → gom 80ms một lần (RAF)
-   - Trong khi stream: hiện plain text (nhanh, không lag)
-   - Sau khi xong: apply markdown + highlight + math
-══════════════════════════════════════════════════════════ */
-
-class StreamRenderer {
-  constructor(el) {
-    this.el          = el;       // DOM element to render into
-    this.full        = "";       // accumulated full text
-    this.pending     = false;    // RAF scheduled?
-    this.rafId       = null;
-    this.lastRender  = 0;
-    this.INTERVAL    = 80;       // ms — render interval during streaming
-    this.done        = false;
-    this._scrollEl   = document.getElementById("chat-area");
-    this._autoScroll = true;
-    this._scrollBind = this._onScroll.bind(this);
-    this._scrollEl?.addEventListener("scroll", this._scrollBind);
-  }
-
-  _onScroll() {
-    // If user scrolled up, stop auto-scroll
-    const el = this._scrollEl;
-    if (!el) return;
-    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
-    this._autoScroll = atBottom;
-  }
-
-  push(chunk) {
-    this.full += chunk;
-    if (!this.pending) {
-      const now = performance.now();
-      const wait = Math.max(0, this.INTERVAL - (now - this.lastRender));
-      this.rafId = setTimeout(() => this._flush(), wait);
-      this.pending = true;
-    }
-  }
-
-  _flush() {
-    this.pending = false;
-    this.lastRender = performance.now();
-    // During streaming: fast plain-text render (split on code fences)
-    this._renderFast(this.full);
-    if (this._autoScroll) this._scroll();
-  }
-
-  _renderFast(text) {
-    // Split on triple-backtick blocks to preserve code visually
-    const parts = text.split(/(```[\s\S]*?```|```[\s\S]*$)/);
-    let html = "";
-    for (let i = 0; i < parts.length; i++) {
-      if (parts[i].startsWith("```")) {
-        // Code block — render minimally
-        const firstLine = parts[i].split("\n")[0].slice(3).trim();
-        const lang = firstLine || "code";
-        const code = parts[i].replace(/^```\w*\n?/, "").replace(/```$/, "");
-        html += `<div class="stream-code-wrap">
-          <div class="code-header">
-            <span class="code-lang">${lang}</span>
-            <span style="font:.65rem var(--fco);color:var(--t3)">●●●</span>
-          </div>
-          <pre style="margin:0;padding:12px 15px;font:.8rem/1.6 var(--fco);
-            overflow-x:auto;background:#0d1117;white-space:pre-wrap">${escHtmlStream(code)}</pre>
-        </div>`;
-      } else {
-        // Regular text — light markdown
-        html += lightMD(parts[i]);
-      }
-    }
-    this.el.innerHTML = html;
-  }
-
-  finish() {
-    // Called when streaming is done
-    this.done = true;
-    clearTimeout(this.rafId);
-    this.pending = false;
-    this._scrollEl?.removeEventListener("scroll", this._scrollBind);
-
-    // Full markdown render
-    this.el.innerHTML = renderMarkdown(this.full);
-
-    // Deferred heavy work — don't block UI
-    requestAnimationFrame(() => {
-      highlightCodeBlocks(this.el);
-      if (this._autoScroll) this._scroll();
-      // Math render last (heaviest)
-      setTimeout(() => {
-        if (typeof renderMathIn === "function") renderMathIn(this.el);
-      }, 50);
-    });
-  }
-
-  _scroll() {
-    if (this._scrollEl) {
-      this._scrollEl.scrollTop = this._scrollEl.scrollHeight;
-    }
-  }
-
-  destroy() {
-    clearTimeout(this.rafId);
-    this._scrollEl?.removeEventListener("scroll", this._scrollBind);
-  }
-}
-
-/* Fast escape for streaming (no replace chains) */
-function escHtmlStream(s) {
-  const d = document.createElement("div");
-  d.textContent = s;
-  return d.innerHTML;
-}
-
-/* Light markdown for streaming — only basic formatting */
-function lightMD(text) {
-  if (!text) return "";
-  return text
-    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
-    .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
-    .replace(/\*(.+?)\*/g,"<em>$1</em>")
-    .replace(/`([^`]+)`/g,'<code style="background:var(--bg-a);padding:1px 5px;border-radius:4px;font-family:var(--fco);font-size:.82em;color:#c4b5fd">$1</code>')
-    .replace(/^#{1,3} (.+)$/gm,"<strong>$1</strong>")
-    .replace(/^[-*] (.+)$/gm,"• $1")
-    .replace(/\n/g,"<br>");
-}
-
 async function boot() {
   try {
     const cfg = await apiGet("/api/config");
@@ -4554,12 +4428,6 @@ async function loadChat(id) {
       welEl.style.display  = "none";
       msgEl.style.display  = "block";
       data.messages.forEach(m => addMessageToDOM(m.role, m.content, false, m.model || CURRENT_MODEL));
-    // Batch highlight sau khi render xong toàn bộ
-    requestAnimationFrame(() => {
-      msgEl.querySelectorAll("pre code:not(.hljs)").forEach(b => {
-        try { hljs.highlightElement(b); } catch(e) {}
-      });
-    });
     } else {
       welEl.style.display  = "flex";
       msgEl.style.display  = "none";
@@ -4700,19 +4568,19 @@ async function sendMessage() {
   document.getElementById("send-btn").disabled = false;
 }
 
-/* ── Groq streaming chat (optimized) ── */
+/* ── Groq streaming chat ── */
 async function streamGroqChat(userText, fileMeta) {
   const thinkId = insertThinkingIndicator();
   let aiGroup   = null;
-  let renderer  = null;
+  let contentEl = null;
   let fullText  = "";
 
   try {
     const body = {
-      chat_id: CURRENT_CHAT_ID,
-      message: userText,
-      model:   CURRENT_MODEL,
-      file:    fileMeta || null,
+      chat_id:  CURRENT_CHAT_ID,
+      message:  userText,
+      model:    CURRENT_MODEL,
+      file:     fileMeta || null,
     };
 
     const reader = await startSSE("/api/chat/stream", body);
@@ -4735,28 +4603,29 @@ async function streamGroqChat(userText, fileMeta) {
 
         if (parsed.error) {
           removeElement(thinkId);
-          renderer?.destroy();
           showApiError(parsed.error, CURRENT_MODEL);
           return;
         }
-
         if (parsed.content) {
           if (!aiGroup) {
             removeElement(thinkId);
             const result = createStreamingAIGroup(CURRENT_MODEL);
-            aiGroup  = result.group;
-            renderer = new StreamRenderer(result.contentEl);
+            aiGroup   = result.group;
+            contentEl = result.contentEl;
             document.getElementById("messages").appendChild(aiGroup);
           }
           fullText += parsed.content;
-          renderer.push(parsed.content);
+          contentEl.innerHTML = renderMarkdown(fullText);
+          highlightCodeBlocks(contentEl);
+          if (typeof renderMathIn === "function") renderMathIn(contentEl);
+          scrollToBottom();
         }
-
         if (parsed.done) {
           if (parsed.chat_id) CURRENT_CHAT_ID = parsed.chat_id;
-          renderer?.finish();
-          const actEl = aiGroup?.querySelector(".msg-actions");
-          if (actEl) actEl.innerHTML = buildActionButtons(fullText);
+          if (aiGroup) {
+            const actEl = aiGroup.querySelector(".msg-actions");
+            if (actEl) actEl.innerHTML = buildActionButtons(fullText);
+          }
           await loadChatList();
           updateChatTitleFromList();
         }
@@ -4764,16 +4633,15 @@ async function streamGroqChat(userText, fileMeta) {
     }
   } catch(e) {
     removeElement(thinkId);
-    renderer?.destroy();
     showApiError("Lỗi kết nối: " + e.message, CURRENT_MODEL);
   }
 }
 
-/* ── Gemini Vision streaming (optimized) ── */
+/* ── Gemini Vision streaming ── */
 async function streamVision(userText, fileMeta) {
-  const thinkId = insertThinkingIndicator("Đang phân tích ảnh…");
+  const thinkId = insertThinkingIndicator("Đang phân tích ảnh với Hnhat");
   let aiGroup   = null;
-  let renderer  = null;
+  let contentEl = null;
   let fullText  = "";
 
   try {
@@ -4806,34 +4674,34 @@ async function streamVision(userText, fileMeta) {
 
         if (parsed.error) {
           removeElement(thinkId);
-          renderer?.destroy();
           showApiError(parsed.error, CURRENT_MODEL);
           return;
         }
-
         if (parsed.content) {
           if (!aiGroup) {
             removeElement(thinkId);
             const result = createStreamingAIGroup(CURRENT_MODEL);
-            aiGroup  = result.group;
-            renderer = new StreamRenderer(result.contentEl);
+            aiGroup   = result.group;
+            contentEl = result.contentEl;
             document.getElementById("messages").appendChild(aiGroup);
           }
           fullText += parsed.content;
-          renderer.push(parsed.content);
+          contentEl.innerHTML = renderMarkdown(fullText);
+          highlightCodeBlocks(contentEl);
+          if (typeof renderMathIn === "function") renderMathIn(contentEl);
+          scrollToBottom();
         }
-
         if (parsed.done) {
-          renderer?.finish();
-          const actEl = aiGroup?.querySelector(".msg-actions");
-          if (actEl) actEl.innerHTML = buildActionButtons(fullText);
+          if (aiGroup) {
+            const actEl = aiGroup.querySelector(".msg-actions");
+            if (actEl) actEl.innerHTML = buildActionButtons(fullText);
+          }
           await loadChatList();
         }
       }
     }
   } catch(e) {
     removeElement(thinkId);
-    renderer?.destroy();
     showApiError("Gemini lỗi: " + e.message, CURRENT_MODEL);
   }
 }
@@ -4941,7 +4809,6 @@ async function streamCodeAnalyze(userText, fileMeta) {
 
         if (parsed.done) {
           removeElement(progressId);
-          renderer?.finish();
           if (aiGroup) {
             const actEl = aiGroup.querySelector(".msg-actions");
             if (actEl) actEl.innerHTML = buildActionButtons(fullText);
@@ -4984,7 +4851,7 @@ function addMessageToDOM(role, content, withActions, model) {
         <div class="msg-content">${renderMarkdown(content)}</div>
       </div>
       <div class="msg-actions">${actions}</div>`;
-    // Highlight handled by batch after all messages rendered
+    setTimeout(() => { highlightCodeBlocks(div); if (typeof renderMathIn === "function") renderMathIn(div); }, 0);
   }
 
   msgEl.appendChild(div);
@@ -5228,6 +5095,9 @@ document.addEventListener("click", e => {
    SETTINGS
 ────────────────────────────────────────────────────────── */
 /* openSettings moved above */
+
+function closeSettings() { document.getElementById("settings-modal").classList.remove("open"); }
+
 /* toggleKeyVis moved above */
 
 /* (duplicate removed) */
@@ -5371,14 +5241,9 @@ function switchAndAsk(model, text) {
   qi(text);
 }
 
-let _scrollRaf = null;
 function scrollToBottom() {
-  if (_scrollRaf) return;  // Already scheduled
-  _scrollRaf = requestAnimationFrame(() => {
-    _scrollRaf = null;
-    const ca = document.getElementById("chat-area");
-    if (ca) ca.scrollTop = ca.scrollHeight;
-  });
+  const ca = document.getElementById("chat-area");
+  ca.scrollTop = ca.scrollHeight;
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -5861,16 +5726,11 @@ function toggleTTS(btn, b64) {
 /* ══════════════════════════════════════════════════════════
    🔀 RETRY WITH DIFFERENT MODEL
 ══════════════════════════════════════════════════════════ */
-const ALL_MODELS_LIST = ["Hnhat Fast","Hnhat Pro","Hnhat Master","Hnhat Code","Hnhat Reason","Llama 4 Scout","Gemma 2","Compound","Hnhat Vision","Hnhat Vision+"];
+const ALL_MODELS_LIST = ["Hnhat Fast","Hnhat Pro","Hnhat Master","Hnhat Code","Hnhat Reason","Kimi K2","Gemma 2","Compound","Hnhat Vision","Hnhat Vision+"];
 
 function getModelIcon(name) {
-  const icons = {
-    "Hnhat Fast":"⚡","Hnhat Pro":"🔥","Hnhat Master":"👑","Hnhat Speed":"🚀",
-    "Hnhat Code":"💻","Hnhat Reason":"🧠","Llama 4 Scout":"🦙","Compound":"⚗️",
-    "Hnhat Vision":"👁","Hnhat Vision+":"🔭"
-  };
-  return icons[name] || "🤖";
-};
+  const icons = { "Hnhat Fast":"⚡","Hnhat Pro":"🔥","Hnhat Master":"👑","Hnhat Code":"💻",
+    "Hnhat Reason":"🧠","Kimi K2":"🌀","Gemma 2":"💎","Compound":"⚗️","Hnhat Vision":"👁","Hnhat Vision+":"🔭" };
   return icons[name] || "🤖";
 }
 
@@ -6222,57 +6082,28 @@ boot();
 # ─────────────────────────────────────────────────────────────
 #  ENTRY POINT
 # ─────────────────────────────────────────────────────────────
-# ─────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    import time
-    import threading
-    import subprocess
-    import webbrowser
-
-    # Kiểm tra môi trường Cloud (Railway, Render, v.v.)
-    _IS_CLOUD = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RENDER") or os.environ.get("PORT"))
-    port = int(os.environ.get("PORT", 5000))
-
     def _open_app_window():
-        time.sleep(1.5)
-        url = f"http://127.0.0.1:{port}"
+        import time
+        import subprocess
+        import webbrowser
+        time.sleep(1.5) # Đợi server khởi động
+        
+        url = "http://127.0.0.1:5000"
         try:
-            # Ưu tiên mở bằng Edge ở chế độ App
+            # Ưu tiên 1: Mở bằng Microsoft Edge (có sẵn trên mọi Windows) ở chế độ Ứng dụng độc lập
             subprocess.Popen(['msedge', f'--app={url}'])
         except Exception:
             try:
-                # Thử mở bằng Chrome ở chế độ App
+                # Ưu tiên 2: Thử mở bằng Google Chrome ở chế độ Ứng dụng
                 subprocess.Popen(['chrome', f'--app={url}'])
             except Exception:
-                # Trở về mở bằng tab web bình thường
+                # Dự phòng: Trở về mở bằng tab trình duyệt bình thường
                 webbrowser.open(url)
 
-    print()
-    print("═" * 62)
-    print("  ⚡  H N H A T   A I   v3.0")
-    print("  Text: Groq API  |  Vision: Gemini API")
-    if _IS_CLOUD:
-        print("  ☁️   Mode: CLOUD (Railway / Render)")
-        print(f"  🌐  Đang chạy trên host 0.0.0.0, cổng {port}")
-    else:
-        print("  💻  Mode: LOCAL DESKTOP")
-        print(f"  🌐  Đang chạy trên host 127.0.0.1, cổng {port}")
-    print("═" * 62)
-    print("  Bước 1 → Mở Settings ⚙️ và nhập API Keys:")
-    print("    Groq   : https://console.groq.com/keys")
-    print("    Gemini : https://aistudio.google.com/app/apikey")
-    print()
-    print("  📋  Phím tắt:")
-    print("    Ctrl+K  = Chat mới       Ctrl+\\  = Sidebar")
-    print("    Ctrl+E  = Export         Ctrl+,  = Settings")
-    print("    Ctrl+U  = Upload file    Esc     = Đóng modal")
-    print("═" * 62)
-    print()
-
-    if _IS_CLOUD:
-        # Nếu chạy trên Railway: dùng 0.0.0.0 để mở ra Internet, KHÔNG bật cửa sổ web
-        app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
-    else:
-        # Nếu chạy trên máy tính bạn: dùng 127.0.0.1 cho an toàn, BẬT cửa sổ Desktop App
-        threading.Thread(target=_open_app_window, daemon=True).start()
-        app.run(host="127.0.0.1", port=port, debug=False, threaded=True)
+    print("Đang khởi động Hnhat AI Desktop...")
+    # Chạy lệnh mở cửa sổ ở một luồng phụ
+    threading.Thread(target=_open_app_window, daemon=True).start()
+    
+    # Khởi động server
+    app.run(host="127.0.0.1", port=5000, debug=False, threaded=True)
