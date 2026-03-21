@@ -5804,22 +5804,39 @@ function searchKey(e) {
 let voiceRecognition = null;
 let isListening = false;
 
-function toggleVoiceInput() {
+async function toggleVoiceInput() {
   const btn = document.getElementById("voice-btn");
   const SR  = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { showToast("❌ Dùng Chrome để dùng Voice Input", "error"); return; }
-  if (isListening) {
-    voiceRecognition?.stop(); return;
+  
+  if (!SR) { 
+    showToast("❌ Trình duyệt này không hỗ trợ nhận diện giọng nói", "error"); 
+    return; 
   }
+  
+  if (isListening) {
+    voiceRecognition?.stop(); 
+    return;
+  }
+
+  try {
+    // Ép trình duyệt hiện bảng hỏi xin quyền Micro (Rất quan trọng cho Mobile)
+    await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (err) {
+    showToast("❌ Bạn chưa cấp quyền sử dụng Micro cho trang web!", "error");
+    return;
+  }
+
   voiceRecognition = new SR();
   voiceRecognition.lang = "vi-VN";
   voiceRecognition.continuous = false;
   voiceRecognition.interimResults = true;
+  
   voiceRecognition.onstart = () => {
     isListening = true;
     if (btn) { btn.classList.add("listening"); }
-    showToast("🎙️ Đang nghe…", "info");
+    showToast("🎙️ Đang nghe... Hãy nói đi!", "info");
   };
+  
   voiceRecognition.onresult = (e) => {
     const inp = document.getElementById("user-input");
     if (inp) {
@@ -5827,18 +5844,31 @@ function toggleVoiceInput() {
       onInputChange(inp);
     }
   };
+  
   voiceRecognition.onend = () => {
     isListening = false;
     if (btn) btn.classList.remove("listening");
   };
+  
   voiceRecognition.onerror = (e) => {
     isListening = false;
     if (btn) btn.classList.remove("listening");
-    showToast("❌ Mic lỗi: " + e.error, "error");
+    
+    // Dịch lỗi ra tiếng Việt để dễ sửa
+    let msg = "Lỗi Micro: " + e.error;
+    if (e.error === 'not-allowed') msg = "❌ Trình duyệt chặn Micro. Hãy cấp quyền trong cài đặt.";
+    if (e.error === 'network') msg = "❌ Lỗi mạng khi nhận diện giọng nói.";
+    if (e.error === 'no-speech') msg = "⚠️ Không nghe thấy tiếng. Hãy thử lại.";
+    
+    showToast(msg, "error");
   };
-  voiceRecognition.start();
+  
+  try {
+    voiceRecognition.start();
+  } catch (e) {
+    showToast("❌ Không thể khởi động Micro.", "error");
+  }
 }
-
 /* ══════════════════════════════════════════════════════════
    🔊 TEXT-TO-SPEECH
 ══════════════════════════════════════════════════════════ */
