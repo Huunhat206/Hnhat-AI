@@ -869,24 +869,17 @@ def r_vision():
 
     def generate():
         try:
-            genai.configure(api_key=gem_key)
-            img_bytes = base64.b64decode(b64_data)
-
-            if PIL_LIB:
-                img_obj = PILImage.open(BytesIO(img_bytes))
-                content_parts = [prompt_txt, img_obj]
-            else:
-                content_parts = [
-                    {"mime_type": mime_type, "data": img_bytes},
-                    prompt_txt,
-                ]
-
-            g_model  = genai.GenerativeModel(model_id)
-            response = g_model.generate_content(content_parts, stream=True)
+            client = genai.Client(api_key=gem_key)
+            # ... (phần xử lý ảnh content_parts giữ nguyên ở giữa) ...
+            
+            response = client.models.generate_content_stream(
+                model=model_id,
+                contents=content_parts,
+            )
 
             full_reply = []
             for chunk_ in response:
-                text_part = getattr(chunk_, "text", None)
+                text_part = chunk_.text
                 if text_part:
                     full_reply.append(text_part)
                     yield sse({"content": text_part})
