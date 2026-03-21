@@ -117,7 +117,12 @@ SYS_CODE = (
     "• Thiết kế kiến trúc: microservices, REST API, database schema\n"
     "• Build: .exe (PyInstaller) · Docker · CI/CD · VPS deploy\n"
     "• Stack: Python · JS/TS/Node · Go · Rust · C/C++ · Java · SQL · Bash\n"
-    "Luôn dùng code blocks chuẩn, giải thích logic, đề xuất cải tiến cụ thể."
+    "QUAN TRỌNG: Nếu người dùng yêu cầu viết TRỌN VẸN MỘT FILE CODE (ví dụ: viết code.py, tạo file html), "
+    "BẮT BUỘC bạn phải bọc nội dung code trong cú pháp sau để hệ thống tự động tạo file:\n"
+    "[FILE:ten_file.duoi]\n"
+    "nội dung code của bạn ở đây...\n"
+    "[/FILE]\n"
+    "Không dùng markdown code block (```) bên trong thẻ [FILE] này nữa."
 )
 
 SYS_VISION = (
@@ -3304,6 +3309,29 @@ body.bubble-frost .bubble-user {
   box-shadow: 0 8px 32px rgba(220,38,38,.35) !important;
 }
 
+/* ═══ CLAUDE ARTIFACTS / FILE CARD ══════════════════════════ */
+.artifact-card {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 18px; margin: 12px 0;
+  background: linear-gradient(135deg, rgba(88,101,242,0.12), rgba(163,125,255,0.05));
+  border: 1px solid rgba(88,101,242,0.3); border-left: 4px solid var(--ac1); border-radius: 12px;
+}
+.ac-icon { font-size: 28px; filter: drop-shadow(0 2px 4px rgba(88,101,242,0.4)); }
+.ac-info { flex: 1; min-width: 0; }
+.ac-name { font: 600 0.95rem var(--fco); color: var(--t1); margin-bottom: 2px; }
+.ac-desc { font: 0.75rem var(--fui); color: var(--t2); }
+.ac-actions { display: flex; gap: 8px; }
+.ac-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 14px; background: var(--bg-i); border: 1px solid var(--b2);
+  border-radius: 8px; color: var(--t1); font: 500 0.8rem var(--fui);
+  cursor: pointer; transition: 0.2s;
+}
+.ac-btn.primary {
+  background: linear-gradient(135deg, var(--ac1), var(--ac2));
+  border: none; color: #fff; box-shadow: 0 4px 12px rgba(88,101,242,0.3);
+}
+.ac-btn:hover { transform: translateY(-1px); filter: brightness(1.1); }
 </style>
 </head>
 <body>
@@ -6237,6 +6265,29 @@ function showToast(msg, type) {
   TOAST_TIMER = setTimeout(() => el.classList.remove("show"), 3000);
 }
 
+/* ──────────────────────────────────────────────────────────
+   DOWNLOAD ARTIFACT FILE
+────────────────────────────────────────────────────────── */
+function downloadArtifact(btn, b64, filename) {
+  try {
+    const text = decodeB64(b64);
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename.trim();
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    const origHTML = btn.innerHTML;
+    btn.innerHTML = "✅ Đã tải về";
+    setTimeout(() => { btn.innerHTML = origHTML; }, 2000);
+  } catch(e) {
+    showToast("❌ Lỗi tải file: " + e.message, "error");
+  }
+}
 /* ──────────────────────────────────────────────────────────
    BOOT
 ────────────────────────────────────────────────────────── */
