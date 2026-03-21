@@ -69,10 +69,20 @@ if not GROQ_LIB:
     sys.exit(1)
 
 def get_data_dir():
-    """ Lấy thư mục chứa file .exe đang chạy để lưu file dữ liệu (JSON, Uploads) """
+    """ Lấy thư mục chứa file dữ liệu. Tự động chuyển vào /app/data nếu chạy trên Cloud """
+    import os
     if getattr(sys, 'frozen', False):
-        return Path(sys.executable).parent
-    return Path(__file__).parent
+        base = Path(sys.executable).parent
+    else:
+        base = Path(__file__).parent
+        
+    # Nếu phát hiện đang chạy trên Railway/Cloud, dời kho dữ liệu vào thư mục con 'data'
+    if os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RENDER") or os.environ.get("PORT"):
+        data_path = base / "data"
+        data_path.mkdir(parents=True, exist_ok=True)
+        return data_path
+        
+    return base
 
 def resource_path(relative_path):
     """ Lấy đường dẫn tới các file tĩnh được gói bên trong file .exe (Ảnh) """
@@ -273,18 +283,19 @@ TEXT_EXTS = {
 #  HELPERS
 # ─────────────────────────────────────────────────────────────
 def get_client_id():
-    """Lấy IP thật của khách, tương thích với Railway/Render (đứng sau Proxy)"""
+    """Lấy Username từ Frontend gửi lên để tạo file lưu trữ riêng biệt"""
     try:
         from flask import request
-        if request.headers.getlist("X-Forwarded-For"):
-            ip = request.headers.getlist("X-Forwarded-For")[0].split(',')[0].strip()
-        else:
-            ip = request.remote_addr
-            
-        safe_ip = ip.replace(".", "_").replace(":", "_")
-        return f"ip_{safe_ip}"
+        username = request.headers.get("X-Username", "").strip()
+        if not username:
+            return "guest"
+        
+        # Xóa các ký tự đặc biệt để làm tên file an toàn (chỉ giữ chữ và số)
+        import re
+        safe_name = re.sub(r'[^a-zA-Z0-9_]', '', username.replace(" ", "_"))
+        return f"user_{safe_name}"
     except Exception:
-        return "default"
+        return "guest"
 
 def load_config() -> dict:
     cid = get_client_id()
@@ -573,6 +584,10 @@ def r_chat_stream():
     model_id  = m["id"]
     max_tok   = m["max_tokens"]
     sys_text  = cfg.get("system_prompt") or m["sys"]
+    # Nhắc AI nhớ tên người dùng
+    username = request.headers.get("X-Username", "Bạn").strip()
+    if username:
+        sys_text += f"\n\n[LƯU Ý QUAN TRỌNG TỪ HỆ THỐNG]: Tên của người dùng đang nói chuyện với bạn là '{username}'. Hãy xưng hô thân thiện, tự nhiên và thỉnh thoảng gọi tên họ trong câu trả lời."
 
     # ── Build user message content ──────────────────────────
     user_content = user_msg
@@ -3325,6 +3340,17 @@ body.bubble-frost .bubble-user {
 </style>
 </head>
 <body>
+<div id="login-overlay" style="display:flex;position:fixed;inset:0;z-index:9999;background:rgba(3,3,9,0.85);backdrop-filter:blur(15px);align-items:center;justify-content:center;flex-direction:column;transition:opacity 0.3s;">
+  <div style="background:var(--bg-s);border:1px solid var(--b3);border-radius:24px;padding:40px;width:90%;max-width:400px;box-shadow:0 30px 60px rgba(0,0,0,0.8), 0 0 40px rgba(124,58,237,0.2);text-align:center;">
+    <div style="width:70px;height:70px;margin:0 auto 20px;border-radius:20px;background:linear-gradient(135deg,var(--ac1),var(--ac2));display:flex;align-items:center;justify-content:center;font-size:32px;box-shadow:0 0 30px rgba(124,58,237,0.5);">✨</div>
+    <div style="font:800 1.6rem var(--fui);margin-bottom:8px;background:linear-gradient(110deg,#fff,var(--ac2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Chào mừng đến Hnhat AI</div>
+    <div style="font:0.85rem var(--fui);color:var(--t2);margin-bottom:24px;">Vui lòng nhập tên của bạn để hệ thống lưu giữ lịch sử trò chuyện.</div>
+    
+    <input type="text" id="login-username" placeholder="Nhập tên của bạn..." style="width:100%;padding:14px 16px;border-radius:12px;border:1px solid var(--b2);background:var(--bg-c);color:var(--t1);font:0.95rem var(--fui);outline:none;text-align:center;margin-bottom:20px;transition:0.2s;" onfocus="this.style.borderColor='var(--ac1)'" onblur="this.style.borderColor='var(--b2)'" onkeydown="if(event.key==='Enter') submitLogin()">
+    
+    <button onclick="submitLogin()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--ac1),var(--ac2));color:#fff;font:700 1rem var(--fui);cursor:pointer;box-shadow:0 4px 15px rgba(124,58,237,0.4);transition:0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">Bắt đầu Trò chuyện ➤</button>
+  </div>
+</div>
 
 <!-- Background layer -->
 <div id="bg-layer" style="display:none;position:fixed;inset:0;z-index:0;pointer-events:none;
@@ -3553,7 +3579,7 @@ body.bubble-frost .bubble-user {
     <!-- Welcome -->
     <div id="welcome">
       <div class="w-orb"><img src="/icon.png" alt="Hnhat" style="width:50px;height:50px;border-radius:14px;object-fit:cover"></div>
-      <div class="w-title">Xin chào, tôi là Hnhat AI</div>
+      <div class="w-title" id="welcome-title">Xin chào, tôi là Hnhat AI</div>
       <div class="w-sub">
         Model AI Made By Hnhat<br>
         Hỏi bất cứ điều gì hoặc kéo thả vào đây!
@@ -4473,9 +4499,72 @@ function showApiError(msg, model) {
   console.error("[Hnhat AI Error]", msg);
 }
 
+// ── XỬ LÝ ĐĂNG NHẬP ──
+function submitLogin() {
+  const nameInput = document.getElementById("login-username").value.trim();
+  if (!nameInput) {
+    showToast("⚠️ Vui lòng nhập tên của bạn!", "error");
+    return;
+  }
+  // Lưu tên vào trình duyệt
+  localStorage.setItem("hnhat_username", nameInput);
+  
+  // Hiệu ứng mờ dần rồi biến mất
+  const overlay = document.getElementById("login-overlay");
+  overlay.style.opacity = "0";
+  setTimeout(() => {
+    overlay.style.display = "none";
+    boot(); // Gọi hàm boot để bắt đầu tải dữ liệu sau khi đã có tên
+  }, 300);
+}
+
+// Kiểm tra xem đã có tên chưa
+function checkLogin() {
+  const savedName = localStorage.getItem("hnhat_username");
+  if (!savedName) {
+    document.getElementById("login-overlay").style.display = "flex";
+    return false;
+  }
+  document.getElementById("login-overlay").style.display = "none";
+  
+  // Đổi câu chào hỏi trên màn hình chính thành tên người dùng
+  const welcomeTitle = document.getElementById("welcome-title");
+  if (welcomeTitle) welcomeTitle.textContent = `Xin chào ${savedName}, tôi là Hnhat AI`;
+  return true;
+}
+
+// ── KHỞI ĐỘNG HỆ THỐNG ──
 async function boot() {
+  // Nếu chưa đăng nhập thì dừng lại, chờ người dùng nhập tên
+  if (!checkLogin()) return;
+
   try {
     const cfg = await apiGet("/api/config");
+    CURRENT_MODEL = cfg.default_model || "Hnhat Pro";
+    setModelUI(CURRENT_MODEL);
+    if (cfg.theme === "light") document.documentElement.setAttribute("data-theme", "light");
+    
+    // Tự động điền key cho người mới (nếu chưa có)
+    if (localStorage.getItem("hnhat_groq_key") === null) {
+      localStorage.setItem("hnhat_groq_key", "ĐIỀN_KEY_CỦA_BẠN_VÀO_ĐÂY");
+    }
+    if (localStorage.getItem("hnhat_gemini_key") === null) {
+      localStorage.setItem("hnhat_gemini_key", "ĐIỀN_KEY_CỦA_BẠN_VÀO_ĐÂY");
+    }
+
+    const hasGroq = !!localStorage.getItem("hnhat_groq_key");
+    if (!hasGroq) setTimeout(openSettings, 800);
+  } catch(e) {
+    console.warn("Config load failed:", e);
+  }
+
+  await loadChatList();
+  setupGlobalDrag();
+  setupChatTitleRename();
+  restoreLocalPrefs();
+  loadBgState();
+  restoreBubblePrefs();
+}
     CURRENT_MODEL = cfg.default_model || "Hnhat Pro";
     setModelUI(CURRENT_MODEL);
     if (cfg.theme === "light") document.documentElement.setAttribute("data-theme", "light");
@@ -6185,6 +6274,7 @@ function getAuthHeaders(extra = {}) {
     "Content-Type": "application/json",
     "X-Groq-Key": localStorage.getItem("hnhat_groq_key") || "",
     "X-Gemini-Key": localStorage.getItem("hnhat_gemini_key") || "",
+    "X-Username": localStorage.getItem("hnhat_username") || "Guest", // <--- GỬI TÊN LÊN SERVER
     ...extra
   };
 }
