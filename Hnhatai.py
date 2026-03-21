@@ -6250,7 +6250,10 @@ document.addEventListener("keydown", e => {
 async function apiGet(url) {
   // Thêm đuôi thời gian vào URL để lừa trình duyệt luôn phải tải mới, chống cache tuyệt đối
   const noCacheUrl = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
-  const r = await fetch(noCacheUrl, { cache: "no-store" });
+  const r = await fetch(noCacheUrl, { 
+    headers: getAuthHeaders(), // <-- DÒNG QUAN TRỌNG ĐỂ SERVER BIẾT LÀ AI ĐANG XIN LỊCH SỬ
+    cache: "no-store" 
+  });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.json();
 }
