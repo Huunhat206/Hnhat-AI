@@ -11,7 +11,7 @@
 ║  Streaming · Vision · Export · Dark/Light · 3000+ lines      ║
 ╚══════════════════════════════════════════════════════════════╝
 
-  Install  :  pip install flask openai google-generativeai pillow
+  Install  :  pip install flask openai google-genai pillow
   Run      :  python Hnhatai.py
   Open     :  http://localhost:5000
 
