@@ -49,12 +49,12 @@ except ImportError:
 
 # Gemini
 try:
-    import google.generativeai as genai
+    import google.genai as genai
     GEMINI_LIB = True
 except ImportError:
     GEMINI_LIB = False
     genai = None
-    print("  [WARN] google-generativeai not installed. Run: pip install google-generativeai")
+    print("  [WARN] google-genai not installed. Run: pip install google-genai")
 
 # PIL for image handling
 try:
