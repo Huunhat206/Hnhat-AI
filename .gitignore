@@ -1,0 +1,9 @@
+# API keys — KHÔNG đẩy lên git!
+.env
+hnhat_config.json
+hnhat_chats.json
+hnhat_uploads/
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
